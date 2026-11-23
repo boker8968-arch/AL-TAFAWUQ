@@ -83,6 +83,7 @@ export async function renderPdfAsset(blob, container) {
   try {
     await drawPage();
   } catch (error) {
+    toolbar.remove();pageHost.remove();
     await loadingTask.destroy();
     throw error;
   }
@@ -90,6 +91,7 @@ export async function renderPdfAsset(blob, container) {
   return async () => {
     disposed = true;
     if (renderTask) { try { renderTask.cancel(); } catch {} }
+    toolbar.remove();pageHost.remove();
     await loadingTask.destroy();
   };
 }
