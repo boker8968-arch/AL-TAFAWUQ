@@ -1,0 +1,225 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart';
+
+import 'content_package_manifest.dart';
+
+/// Imports one subject package only when its exact curriculum release and
+/// release-subject mapping have both been verified locally.
+class ContentPackageImporter {
+  ContentPackageImporter({
+    required Database database,
+    required Directory packagesDirectory,
+  })  : _database = database,
+        _packagesDirectory = packagesDirectory;
+
+  final Database _database;
+  final Directory _packagesDirectory;
+
+  Future<ContentPackageImportResult> importDirectory(
+    Directory packageDirectory,
+  ) async {
+    final sourceRoot = await packageDirectory.resolveSymbolicLinks();
+    final manifestFile = File(p.join(sourceRoot, 'manifest.json'));
+    if (!await manifestFile.exists()) {
+      throw const FormatException('Package manifest.json was not found.');
+    }
+
+    final manifestBytes = await manifestFile.readAsBytes();
+    final manifest = ContentPackageManifest.fromJson(utf8.decode(manifestBytes));
+    _validateStorageSegment(manifest.packageCode, 'package_code');
+    _validateStorageSegment(manifest.version, 'version');
+
+    final matches = await _database.rawQuery('''
+      SELECT r.id AS release_id, rs.id AS release_subject_id, s.id AS subject_id
+      FROM curriculum_releases r
+      JOIN grades g ON g.id = r.grade_id
+      JOIN curriculum_release_subjects rs ON rs.release_id = r.id
+      JOIN subjects s ON s.id = rs.subject_id
+      WHERE g.code = ? AND s.code = ? AND r.academic_year = ?
+        AND r.edition_code = ? AND r.verification_status = 'verified'
+        AND rs.verification_status = 'verified' AND s.is_active = 1
+        AND (r.track_id IS NULL OR s.track_id IS NULL OR r.track_id = s.track_id)
+      LIMIT 2
+    ''', [
+      manifest.gradeCode,
+      manifest.subjectCode,
+      manifest.academicYear,
+      manifest.editionCode,
+    ]);
+    if (matches.isEmpty) {
+      throw StateError(
+        'No verified curriculum release and subject mapping match this package.',
+      );
+    }
+    if (matches.length != 1) {
+      throw StateError(
+        'The package matches more than one verified curriculum mapping; resolve the ambiguity first.',
+      );
+    }
+
+    final installed = await _database.query(
+      'content_packages',
+      columns: ['id', 'version'],
+      where: 'package_code = ?',
+      whereArgs: [manifest.packageCode],
+      limit: 1,
+    );
+    if (installed.isNotEmpty) {
+      throw StateError(
+        'Package \${manifest.packageCode} is already installed '
+        '(version \${installed.first['version']}). Replacement is not supported yet.',
+      );
+    }
+
+    await _packagesDirectory.create(recursive: true);
+    final packagesPath = await _packagesDirectory.resolveSymbolicLinks();
+    final packageParent = Directory(p.join(packagesPath, manifest.packageCode));
+    await packageParent.create(recursive: true);
+    final finalDirectory = Directory(p.join(packageParent.path, manifest.version));
+    if (await finalDirectory.exists()) {
+      throw StateError('The target package version directory already exists.');
+    }
+
+    final stagingDirectory = Directory(
+      p.join(packageParent.path, '.staging-\${DateTime.now().microsecondsSinceEpoch}'),
+    );
+    await stagingDirectory.create();
+    var promoted = false;
+
+    try {
+      for (final asset in manifest.assets) {
+        final sourceFile = await _resolveSafeAsset(sourceRoot, asset.path);
+        final actualLength = await sourceFile.length();
+        if (actualLength != asset.bytes) {
+          throw FormatException(
+            'Asset size mismatch for \${asset.path}: expected \${asset.bytes}, got $actualLength.',
+          );
+        }
+        final actualDigest = await sha256.bind(sourceFile.openRead()).first;
+        if (actualDigest.toString() != asset.sha256) {
+          throw FormatException('SHA-256 mismatch for \${asset.path}.');
+        }
+
+        final destination = File(p.join(stagingDirectory.path, asset.path));
+        await destination.parent.create(recursive: true);
+        await sourceFile.copy(destination.path);
+      }
+
+      await File(p.join(stagingDirectory.path, 'manifest.json'))
+          .writeAsBytes(manifestBytes, flush: true);
+      await stagingDirectory.rename(finalDirectory.path);
+      promoted = true;
+
+      final now = DateTime.now().toUtc().toIso8601String();
+      final manifestPath = p.join(finalDirectory.path, 'manifest.json');
+      final manifestChecksum = sha256.convert(manifestBytes).toString();
+      final packageId = await _database.transaction<int>((txn) async {
+        final id = await txn.insert('content_packages', {
+          'package_code': manifest.packageCode,
+          'version': manifest.version,
+          'manifest_path': manifestPath,
+          'imported_at': now,
+          'checksum': manifestChecksum,
+        });
+
+        for (final unit in manifest.units) {
+          final unitId = await txn.insert('curriculum_units', {
+            'subject_id': matches.single['subject_id'],
+            'release_subject_id': matches.single['release_subject_id'],
+            'package_id': id,
+            'content_code': unit.code,
+            'title_ar': unit.title,
+            'sort_order': unit.sortOrder,
+            'source_label': manifest.sourceLabel,
+          });
+          for (final lesson in unit.lessons) {
+            await txn.insert('lessons', {
+              'unit_id': unitId,
+              'content_code': lesson.code,
+              'title_ar': lesson.title,
+              'summary_ar': lesson.summary,
+              'body_path': lesson.bodyFile == null
+                  ? null
+                  : p.join(finalDirectory.path, lesson.bodyFile!),
+              'sort_order': lesson.sortOrder,
+              'content_version': manifest.version,
+            });
+          }
+        }
+        return id;
+      });
+
+      return ContentPackageImportResult(
+        packageId: packageId,
+        packageCode: manifest.packageCode,
+        version: manifest.version,
+        importedUnits: manifest.units.length,
+        importedLessons: manifest.units.fold<int>(
+          0,
+          (total, unit) => total + unit.lessons.length,
+        ),
+      );
+    } catch (_) {
+      if (promoted && await finalDirectory.exists()) {
+        await finalDirectory.delete(recursive: true);
+      }
+      rethrow;
+    } finally {
+      if (await stagingDirectory.exists()) {
+        await stagingDirectory.delete(recursive: true);
+      }
+    }
+  }
+
+  Future<File> _resolveSafeAsset(String sourceRoot, String relativePath) async {
+    final segments = relativePath.split('/');
+    var current = sourceRoot;
+    for (var index = 0; index < segments.length; index++) {
+      current = p.join(current, segments[index]);
+      final type = await FileSystemEntity.type(current, followLinks: false);
+      if (type == FileSystemEntityType.notFound ||
+          type == FileSystemEntityType.link) {
+        throw FileSystemException('Asset is missing or contains a symbolic link.', current);
+      }
+      if (index < segments.length - 1 && type != FileSystemEntityType.directory) {
+        throw FileSystemException('Asset parent is not a directory.', current);
+      }
+      if (index == segments.length - 1 && type != FileSystemEntityType.file) {
+        throw FileSystemException('Asset is not a regular file.', current);
+      }
+    }
+
+    final resolved = await File(current).resolveSymbolicLinks();
+    final prefix = p.normalize(sourceRoot) + p.separator;
+    if (!p.normalize(resolved).startsWith(prefix)) {
+      throw FileSystemException('Asset resolves outside the package directory.', current);
+    }
+    return File(resolved);
+  }
+
+  static void _validateStorageSegment(String value, String field) {
+    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$').hasMatch(value)) {
+      throw FormatException('Unsafe $field for local storage: $value');
+    }
+  }
+}
+
+class ContentPackageImportResult {
+  const ContentPackageImportResult({
+    required this.packageId,
+    required this.packageCode,
+    required this.version,
+    required this.importedUnits,
+    required this.importedLessons,
+  });
+
+  final int packageId;
+  final String packageCode;
+  final String version;
+  final int importedUnits;
+  final int importedLessons;
+}
