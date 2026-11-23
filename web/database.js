@@ -141,3 +141,40 @@ export async function getPackageAsset(packageId,relativePath){
  if(!row||!(row.blob instanceof Blob))throw new Error('ملف المحتوى غير موجود داخل الحزمة المحلية.');
  return {blob:row.blob,media_type:row.media_type||row.blob.type||'application/octet-stream'};
 }
+
+export async function getContentPackages({reviewStatus=null}={}){
+ if(reviewStatus!==null&&!['pending_review','approved','rejected'].includes(reviewStatus))throw new Error('حالة المراجعة غير صالحة.');
+ const rows=await getAll('content_packages');
+ return rows.filter(row=>reviewStatus===null||row.review_status===reviewStatus)
+  .sort((a,b)=>String(b.imported_at||'').localeCompare(String(a.imported_at||''))||(b.id-a.id));
+}
+export async function getPackageReviewHistory(packageId){
+ return (await getAll('content_package_reviews')).filter(row=>row.package_id===Number(packageId))
+  .sort((a,b)=>String(b.reviewed_at||'').localeCompare(String(a.reviewed_at||''))||(b.id-a.id));
+}
+export async function reviewContentPackage({packageId,decision,reviewerLabel,notes=null}){
+ if(!['approved','rejected'].includes(decision))throw new Error('قرار المراجعة غير صالح.');
+ const reviewer=String(reviewerLabel||'').trim();
+ if(!reviewer)throw new Error('اسم المراجع مطلوب.');
+ const cleanNotes=String(notes||'').trim()||null;
+ if(decision==='rejected'&&!cleanNotes)throw new Error('يجب كتابة سبب الرفض.');
+ const db=await openDb();
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction(['content_packages','content_package_reviews'],'readwrite');
+  const packages=tx.objectStore('content_packages');
+  const request=packages.get(Number(packageId));
+  let failure=null;
+  request.onsuccess=()=>{
+   const pkg=request.result;
+   if(!pkg){failure=new Error('حزمة المحتوى غير موجودة.');tx.abort();return;}
+   if(pkg.review_status!=='pending_review'){failure=new Error('لا يمكن مراجعة حزمة ليست قيد المراجعة.');tx.abort();return;}
+   if(decision==='approved'&&pkg.source_label==='official'){failure=new Error('لا يمكن اعتماد حزمة رسمية قبل التحقق المستقل من مصدرها.');tx.abort();return;}
+   const now=new Date().toISOString();
+   packages.put({...pkg,review_status:decision,reviewed_at:now,reviewer_label:reviewer,review_notes:cleanNotes});
+   tx.objectStore('content_package_reviews').add({package_id:Number(packageId),decision,reviewer_label:reviewer,notes:cleanNotes,reviewed_at:now});
+  };
+  tx.oncomplete=()=>resolve(true);
+  tx.onabort=()=>reject(failure||tx.error||new Error('تعذر حفظ قرار المراجعة.'));
+  tx.onerror=()=>reject(failure||tx.error||new Error('تعذر حفظ قرار المراجعة.'));
+ });
+}
