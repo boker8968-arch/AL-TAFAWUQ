@@ -49,7 +49,8 @@ void main() {
       final manifest = ContentPackageManifest.fromMap(validManifest());
       expect(manifest.packageCode, 'sudan-certificate-biology');
       expect(manifest.units.single.lessons.single.bodyFile, 'lessons/lesson-01.md');
-      expect(manifest.assets.single.bytes, 128);
+      expect(manifest.assets, hasLength(2));
+      expect(manifest.assets.last.bytes, 128);
     });
 
     test('rejects unsupported schema versions', () {
