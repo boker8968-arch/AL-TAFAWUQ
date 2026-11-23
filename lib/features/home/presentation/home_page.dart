@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../student/presentation/student_setup_page.dart';
 import '../../content/presentation/content_management_page.dart';
 import '../../library/presentation/learning_library_page.dart';
+import '../../exams/presentation/exams_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -17,6 +18,12 @@ class HomePage extends StatelessWidget {
   void _openLibrary(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const LearningLibraryPage()),
+    );
+  }
+
+  void _openExams(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ExamsPage()),
     );
   }
 
@@ -67,7 +74,10 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 24),
             const _SectionHeading(title: 'ماذا تريد أن تدرس اليوم؟'),
             const SizedBox(height: 12),
-            _StudyGrid(onOpenLibrary: () => _openLibrary(context)),
+            _StudyGrid(
+              onOpenLibrary: () => _openLibrary(context),
+              onOpenExams: () => _openExams(context),
+            ),
             const SizedBox(height: 24),
             const _SectionHeading(title: 'تابع رحلتك التعليمية'),
             const SizedBox(height: 12),
@@ -83,6 +93,7 @@ class HomePage extends StatelessWidget {
         selectedIndex: 0,
         onDestinationSelected: (index) {
           if (index == 1) _openLibrary(context);
+          if (index == 2) _openExams(context);
         },
         destinations: const [
           NavigationDestination(
@@ -183,9 +194,10 @@ class _SectionHeading extends StatelessWidget {
 }
 
 class _StudyGrid extends StatelessWidget {
-  const _StudyGrid({required this.onOpenLibrary});
+  const _StudyGrid({required this.onOpenLibrary, required this.onOpenExams});
 
   final VoidCallback onOpenLibrary;
+  final VoidCallback onOpenExams;
 
   static const _items = [
     (title: 'المناهج', icon: Icons.menu_book_rounded),
@@ -211,7 +223,7 @@ class _StudyGrid extends StatelessWidget {
         return Card(
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: item.title == 'الامتحانات' ? null : onOpenLibrary,
+            onTap: item.title == 'الامتحانات' ? onOpenExams : onOpenLibrary,
             child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
