@@ -1,5 +1,5 @@
 // Browser-side schema mirrors the Flutter SQLite v6 domain and publication rules.
-const DB_NAME='al-tafawuq', DB_VERSION=6;
+const DB_NAME='al-tafawuq', DB_VERSION=7;
 const DEFINITIONS={
  grades:{keyPath:'id'},
  study_tracks:{keyPath:'id',indexes:[['grade_id','grade_id']]},
