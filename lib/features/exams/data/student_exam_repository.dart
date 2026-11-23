@@ -146,22 +146,22 @@ class StudentExamRepository {
       var graded = 0;
       for (final q in questions) {
         final marks = (q['marks'] as num).toDouble();
+        final canGrade = q['answer_key_verified'] == 1 &&
+            q['answer_json'] != null &&
+            const {'multiple_choice', 'true_false'}.contains(q['question_type']);
+        if (!canGrade) continue;
         total += marks;
+        graded++;
         final answerRows = await txn.query('attempt_answers',
           columns: ['answer_json'],
           where: 'attempt_id = ? AND question_id = ?',
           whereArgs: [attemptId, q['id']], limit: 1);
         if (answerRows.isEmpty) continue;
-        final canGrade = q['answer_key_verified'] == 1 &&
-            q['answer_json'] != null &&
-            const {'multiple_choice', 'true_false'}.contains(q['question_type']);
-        if (!canGrade) continue;
         final submitted = jsonDecode(answerRows.first['answer_json'] as String);
         final expected = jsonDecode(q['answer_json'] as String);
         final correct = jsonEncode(submitted) == jsonEncode(expected);
         final awarded = correct ? marks : 0.0;
         score += awarded;
-        graded++;
         await txn.update('attempt_answers', {
           'is_correct': correct ? 1 : 0,
           'awarded_marks': awarded,
