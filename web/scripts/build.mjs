@@ -5,7 +5,7 @@ for (const file of ['index.html','styles.css','app.js','database.js','content-pa
 console.log('Offline web shell copied to www/.');
 const pdfVendor = new URL('../www/vendor/pdfjs/', import.meta.url);
 await mkdir(pdfVendor, { recursive: true });
-for (const file of ['pdf.mjs','pdf.worker.mjs']) {
+await cp(new URL('../node_modules/pdfjs-dist/LICENSE', import.meta.url), new URL('LICENSE', pdfVendor));\nfor (const file of ['pdf.mjs','pdf.worker.mjs']) {
   await cp(new URL('../node_modules/pdfjs-dist/build/'+file, import.meta.url), new URL(file, pdfVendor));
 }
 for (const folder of ['cmaps','standard_fonts','wasm']) {
