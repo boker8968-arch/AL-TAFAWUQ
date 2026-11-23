@@ -9,7 +9,7 @@ function requiredString(value, field) {
   return value.trim();
 }
 function safePath(value, field) {
-  const path = requiredString(value, field).replaceAll('\\\\', '/');
+  const path = requiredString(value, field).replaceAll('\\', '/');
   const parts = path.split('/');
   if (path.startsWith('/') || /^[a-z]:/i.test(path) || parts.some(p => !p || p === '.' || p === '..')) {
     fail('مسار غير آمن في الحزمة: ' + field);
@@ -60,7 +60,7 @@ function fileMap(files) {
   const map = new Map();
   for (const file of files) {
     const rel = (file.webkitRelativePath || file.name).split('/').slice(1).join('/');
-    if (rel) map.set(rel.replaceAll('\\\\','/'), file);
+    if (rel) map.set(rel.replaceAll('\\','/'), file);
     if (file.name === 'manifest.json' && !map.has('manifest.json')) map.set('manifest.json', file);
   }
   return map;
