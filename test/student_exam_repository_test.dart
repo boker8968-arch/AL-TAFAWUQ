@@ -57,6 +57,25 @@ void main() {
     );
   });
 
+
+  test('returns only completed attempts for approved exams', () async {
+    await db.insert('exam_attempts', {
+      'exam_id': 1,
+      'started_at': '2026-11-23T08:00:00.000Z',
+      'completed_at': '2026-11-23T08:10:00.000Z',
+      'score': 2.0,
+      'total_marks': 2.0,
+    });
+    await db.insert('exam_attempts', {
+      'exam_id': 1,
+      'started_at': '2026-11-23T08:20:00.000Z',
+      'completed_at': null,
+    });
+    expect(await repository.getAttemptHistory(1), hasLength(1));
+    await db.update('content_packages', {'review_status': 'pending_review'});
+    expect(await repository.getAttemptHistory(1), isEmpty);
+  });
+
   test('does not list exams from pending packages', () async {
     await db.update('content_packages', {'review_status': 'pending_review'});
     expect(await repository.getPublishedExams(gradeId: 3), isEmpty);
