@@ -53,7 +53,11 @@ class StudentExamRepository {
     ''', args);
   }
 
-  Future<int> startAttempt(int examId) async {
+  Future<int> startAttempt({
+    required int examId,
+    required int gradeId,
+    int? trackId,
+  }) async {
     final visible = await _db.rawQuery('''
       SELECT e.id FROM exams e
       JOIN content_packages cp ON cp.id = e.package_id
@@ -62,11 +66,14 @@ class StudentExamRepository {
       JOIN curriculum_release_subjects rs ON rs.id = u.release_subject_id
       JOIN curriculum_releases r ON r.id = rs.release_id
       WHERE e.id = ? AND cp.review_status = 'approved'
+        AND s.grade_id = ?
+        AND ((? IS NULL AND s.track_id IS NULL) OR
+          (? IS NOT NULL AND (s.track_id IS NULL OR s.track_id = ?)))
         AND rs.subject_id = s.id
         AND rs.verification_status = 'verified'
         AND r.verification_status = 'verified'
       LIMIT 1
-    ''', [examId]);
+    ''', [examId, gradeId, trackId, trackId, trackId]);
     if (visible.isEmpty) throw StateError('This exam is not published.');
     return _db.insert('exam_attempts', {
       'exam_id': examId,
