@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../student/presentation/student_setup_page.dart';
 import '../../content/presentation/content_management_page.dart';
+import '../../learning/presentation/library_page.dart';
 import '../../library/presentation/learning_library_page.dart';
 
 class HomePage extends StatelessWidget {
@@ -20,7 +21,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Future<void> _openStudentSetup(BuildContext context) async {
+  void _openLibrary(BuildContext context) {\n    Navigator.of(context).push(\n      MaterialPageRoute<void>(builder: (_) => const LibraryPage()),\n    );\n  }\n\n  Future<void> _openStudentSetup(BuildContext context) async {
     await Navigator.of(context).push(
       MaterialPageRoute<bool>(
         builder: (_) => const StudentSetupPage(),
