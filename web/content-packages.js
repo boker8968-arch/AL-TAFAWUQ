@@ -109,8 +109,8 @@ export async function importContentPackage(fileList) {
   }
 
   const [grades,subjects,releases,mappings,packages] = await Promise.all(['grades','subjects','curriculum_releases','curriculum_release_subjects','content_packages'].map(getAll));
-  const grade = grades.find(x => x.code === manifest.grade_code);
-  const subject = subjects.find(x => x.code === manifest.subject_code && x.is_active === 1);
+  const grade = grades.find(x => x.code === manifest.grade_code && x.is_active === 1);
+  const subject = grade && subjects.find(x => x.code === manifest.subject_code && x.grade_id === grade.id && x.is_active === 1);
   if (!grade || !subject) fail('الصف أو المادة غير موجودين في قاعدة المناهج المعتمدة.');
   const matches = mappings.filter(map => {
     const release = releases.find(r => r.id === map.release_id);
