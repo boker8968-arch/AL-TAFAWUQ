@@ -42,7 +42,7 @@ export async function startExamAttempt(examId,{gradeId,trackId=null}={}){
   const exams=await getPublishedExams({gradeId,trackId});
   const exam=exams.find(x=>x.id===Number(examId));
   if(!exam)throw new Error('هذا الامتحان غير منشور لهذا الصف.');
-  return addRecord('exam_attempts',{exam_id:exam.id,started_at:new Date().toISOString(),completed_at:null,score:null,total_marks:null});
+  return addRecord('exam_attempts',{exam_id:exam.id,started_at:new Date().toISOString(),completed_at:null,score:null,total_marks:null,expires_at:exam.duration_minutes?new Date(Date.now()+Number(exam.duration_minutes)*60000).toISOString():null});
 }
 export async function getAttemptQuestions(attemptId){
   const attempt=await getRecord('exam_attempts',Number(attemptId));
@@ -82,7 +82,29 @@ export async function submitExamAttempt(attemptId){
   }
   const now=new Date().toISOString();
   await putRecord('exam_attempts',{...attempt,completed_at:now,score,total_marks:total});
+  const exam=await getRecord('exams',attempt.exam_id);
+  if(exam){const started=new Date(attempt.started_at),ended=new Date(now);await addRecord('study_sessions',{subject_id:exam.subject_id,session_type:'exam',started_at:started.toISOString(),ended_at:ended.toISOString(),duration_seconds:Math.max(0,Math.floor((ended-started)/1000)),completed_items:questions.length});}
   return {attempt_id:Number(attemptId),score,total_marks:total,graded_questions:graded,total_questions:questions.length};
+}
+export async function recordLessonStudySession(lessonId,startedAt,endedAt=new Date()){
+ const [lessons,units,packages,mappings,releases]=await Promise.all(['lessons','curriculum_units','content_packages','curriculum_release_subjects','curriculum_releases'].map(getAll));
+ const lesson=lessons.find(x=>x.id===Number(lessonId)),unit=lesson&&units.find(x=>x.id===lesson.unit_id);
+ const pkg=unit&&packages.find(x=>x.id===unit.package_id),mapping=unit&&mappings.find(x=>x.id===unit.release_subject_id),release=mapping&&releases.find(x=>x.id===mapping.release_id);
+ if(!lesson||pkg?.review_status!=='approved'||mapping?.verification_status!=='verified'||release?.verification_status!=='verified')throw new Error('لا يمكن تسجيل جلسة لدرس غير منشور.');
+ const start=new Date(startedAt),end=new Date(endedAt);
+ const seconds=Math.max(0,Math.floor((end-start)/1000));
+ return addRecord('study_sessions',{subject_id:unit.subject_id,session_type:'lesson',started_at:start.toISOString(),ended_at:end.toISOString(),duration_seconds:seconds,completed_items:1});
+}
+export async function getStudentDashboard({gradeId,trackId=null}={}){
+ const units=await getApprovedUnits({gradeId,trackId});
+ const [allLessons,progress,subjects,sessions,attempts,exams,packages]=await Promise.all(['lessons','study_progress','subjects','study_sessions','exam_attempts','exams','content_packages'].map(getAll));
+ const unitIds=new Set(units.map(u=>u.id)),lessonRows=allLessons.filter(l=>unitIds.has(l.unit_id));
+ const lessonIds=new Set(lessonRows.map(l=>l.id)),completed=progress.filter(p=>lessonIds.has(p.lesson_id)&&p.status==='completed').length;
+ const subjectIds=new Set(units.map(u=>u.subject_id));
+ const seconds=sessions.filter(s=>subjectIds.has(s.subject_id)).reduce((n,s)=>n+(Number(s.duration_seconds)||0),0);
+ const visibleExamIds=new Set(exams.filter(e=>subjectIds.has(e.subject_id)&&packages.some(p=>p.id===e.package_id&&p.review_status==='approved')).map(e=>e.id));
+ const completedAttempts=attempts.filter(a=>visibleExamIds.has(a.exam_id)&&a.completed_at).length;
+ return {units:units.length,lessons:lessonRows.length,completedLessons:completed,progressPercent:lessonRows.length?Math.round(completed/lessonRows.length*100):0,studySeconds:seconds,completedExams:completedAttempts};
 }
 export async function getAttemptHistory(examId){
   return (await getAll('exam_attempts')).filter(x=>x.exam_id===Number(examId)&&x.completed_at).sort((a,b)=>b.completed_at.localeCompare(a.completed_at));
