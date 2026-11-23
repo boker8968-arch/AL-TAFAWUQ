@@ -16,7 +16,7 @@ const DEFINITIONS={
  bookmarks:{keyPath:'id',indexes:[['item_type','item_type']]},
  study_progress:{keyPath:'lesson_id'},
  student_profiles:{keyPath:'id'},
- content_packages:{keyPath:'id',indexes:[['package_code','package_code'],['review_status','review_status']]},
+ content_packages:{keyPath:'id',indexes:[['package_code','package_code',true],['review_status','review_status']]},
  content_package_reviews:{keyPath:'id',indexes:[['package_id','package_id']]},
  package_assets:{keyPath:['package_id','path'],indexes:[['package_id','package_id']]},
  study_notes:{keyPath:'id',indexes:[['package_id','package_id'],['subject_id','subject_id']]},
