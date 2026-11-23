@@ -108,10 +108,12 @@ export async function importContentPackage(fileList) {
   const byPath = fileMap(files);
   const manifestFile = byPath.get('manifest.json') || files.find(f => f.name === 'manifest.json');
   if (!manifestFile) fail('لم يتم العثور على manifest.json داخل المجلد المختار.');
+  if (manifestFile.size > 2 * 1024 * 1024) fail('حجم manifest.json يتجاوز الحد المسموح (2 ميجابايت).');
   let manifest;
   try { manifest = JSON.parse(await manifestFile.text()); } catch { fail('تعذر قراءة manifest.json؛ تأكد من صحة JSON.'); }
   const assets = validateManifest(manifest);
   const verifiedFiles = [];
+  let packageBytes = 0;
   for (const [path, spec] of assets) {
     const file = byPath.get(path);
     if (!file) fail('ملف مفقود من الحزمة: ' + path);
