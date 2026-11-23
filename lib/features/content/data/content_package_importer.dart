@@ -213,7 +213,8 @@ class ContentPackageImporter {
               'explanation_ar': question.explanation,
               'difficulty': question.difficulty,
               'source_label': manifest.sourceLabel,
-              'answer_key_verified': question.answerKeyVerified ? 1 : 0,
+              // A package manifest is untrusted input and cannot certify its own answer key.
+              'answer_key_verified': 0,
             });
             await txn.insert('exam_questions', {
               'exam_id': examId,
