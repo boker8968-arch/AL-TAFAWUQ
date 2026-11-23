@@ -16,7 +16,7 @@ function safePath(value, field) {
   }
   return path;
 }
-function validateManifest(m) {
+export function validateManifest(m) {
   if (!m || typeof m !== 'object' || Array.isArray(m)) fail('ملف manifest.json غير صالح.');
   if (m.schema_version !== 1) fail('إصدار بنية الحزمة غير مدعوم.');
   for (const key of ['package_code','version','title','grade_code','subject_code','academic_year','edition_code','source_label']) requiredString(m[key], key);
