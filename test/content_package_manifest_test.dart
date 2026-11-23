@@ -53,6 +53,56 @@ void main() {
       expect(manifest.assets.last.bytes, 128);
     });
 
+
+    test('parses exams and typed questions without requiring them in older packages', () {
+      final data = validManifest();
+      data['exams'] = [
+        {
+          'code': 'practice-01',
+          'title': 'اختبار تجريبي',
+          'exam_type': 'practice',
+          'duration_minutes': 20,
+          'questions': [
+            {
+              'code': 'q-01',
+              'type': 'multiple_choice',
+              'prompt': 'اختر الإجابة الصحيحة',
+              'options': [
+                {'value': 'a', 'label': 'الخيار أ'},
+                {'value': 'b', 'label': 'الخيار ب'}
+              ],
+              'answer': 'b',
+              'answer_key_verified': true,
+              'marks': 2
+            }
+          ]
+        }
+      ];
+      final manifest = ContentPackageManifest.fromMap(data);
+      expect(manifest.exams.single.questions.single.answer, 'b');
+      expect(manifest.exams.single.questions.single.answerKeyVerified, isTrue);
+      expect(manifest.exams.single.questions.single.marks, 2);
+    });
+
+    test('rejects multiple-choice questions without enough options', () {
+      final data = validManifest();
+      data['exams'] = [
+        {
+          'code': 'practice-01',
+          'title': 'اختبار',
+          'questions': [
+            {
+              'code': 'q-01',
+              'type': 'multiple_choice',
+              'prompt': 'سؤال',
+              'options': ['خيار واحد']
+            }
+          ]
+        }
+      ];
+      expect(() => ContentPackageManifest.fromMap(data), throwsFormatException);
+    });
+
     test('rejects unsupported schema versions', () {
       final data = validManifest()..['schema_version'] = 9;
       expect(() => ContentPackageManifest.fromMap(data), throwsFormatException);
