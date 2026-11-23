@@ -31,7 +31,7 @@ The importer is exposed through the Android content-management screen. Imported 
 
 The initial library UI in `lib/features/library/presentation/learning_library_page.dart` groups approved units by subject using `StudentLearningRepository`; it does not read imported content tables directly. Unit lesson lists use the same publication boundary. The reader in `lesson_reader_page.dart` reads UTF-8 lesson bodies from the app's private package directory only, rejects paths outside that root and non-regular files, and displays the lesson summary/body offline. Students can explicitly mark a lesson complete; progress and a local study session are saved in SQLite. Session records inherit the lesson's subject when one is not supplied so study-time summaries can aggregate correctly.
 
-The current reader is text-first. PDF rendering, image/audio/video playback, exams, flashcards, and the progress dashboard remain planned work. Empty library state is expected until real curriculum releases, subject mappings, and reviewed content packages have been verified and approved; no curriculum or subject content is seeded.
+The current reader is text-first. PDF rendering, image/audio/video playback, flashcards, and the progress dashboard remain planned work. An initial offline exam workflow now supports approved package exams, local attempts, answer persistence, and restricted automatic grading. Empty library state is expected until real curriculum releases, subject mappings, and reviewed content packages have been verified and approved; no curriculum or subject content is seeded.
 
 ## Content quality and provenance
 
@@ -47,7 +47,7 @@ Official Sudanese curriculum materials are the primary source. Grade/track struc
 
 ## Current implementation status
 
-The Flutter shell, local database schemas v1–v5, curriculum repository, manifest parser, verified local content importer, editorial review workflow, student publication/progress repository, initial offline library, and text lesson reader are present in the repository. Flutter analysis, automated test execution, Android build verification, and device-level import testing have not yet been confirmed in an available Flutter environment. Flutter analysis, automated test execution, Android build verification, and device-level import testing have not yet been confirmed in an available Flutter environment.
+The Flutter shell, local database schemas v1–v6, curriculum repository, manifest parser, verified local content importer, editorial review workflow, student publication/progress repository, initial offline library, and text lesson reader are present in the repository. Flutter analysis, automated test execution, Android build verification, and device-level import testing have not yet been confirmed in an available Flutter environment. Flutter analysis, automated test execution, Android build verification, and device-level import testing have not yet been confirmed in an available Flutter environment.
 
 ## Offline exam workflow
 
