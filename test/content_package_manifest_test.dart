@@ -30,8 +30,14 @@ void main() {
         ],
         'assets': [
           {
+            'path': 'lessons/lesson-01.md',
+            'sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            'bytes': 64,
+            'media_type': 'text/markdown',
+          },
+          {
             'path': 'media/diagram.png',
-            'sha256': 'a' * 64,
+            'sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             'bytes': 128,
             'media_type': 'image/png',
           }
