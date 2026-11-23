@@ -94,7 +94,7 @@ class ContentPackageManifest {
 
     final unitCodes = <String>{};
     final lessonCodes = <String>{};
-    final assetPaths = <String>{};
+    final referencedFiles = <String>{};
     for (final unit in units) {
       if (!unitCodes.add(unit.code)) {
         throw FormatException('Duplicate unit code: ${unit.code}');
@@ -108,9 +108,7 @@ class ContentPackageManifest {
         }
         if (lesson.bodyFile != null) {
           _validateRelativePath(lesson.bodyFile!, 'lesson body_file');
-          if (!assetPaths.add(lesson.bodyFile!)) {
-            throw FormatException('Duplicate package file path: ${lesson.bodyFile}');
-          }
+          referencedFiles.add(lesson.bodyFile!);
         }
       }
     }
@@ -118,6 +116,11 @@ class ContentPackageManifest {
       _validateRelativePath(asset.path, 'asset path');
       if (!assetPaths.add(asset.path)) {
         throw FormatException('Duplicate package file path: ${asset.path}');
+      }
+    }
+    for (final file in referencedFiles) {
+      if (!assetPaths.contains(file)) {
+        throw FormatException('Lesson body file is missing from assets: $file');
       }
     }
   }
