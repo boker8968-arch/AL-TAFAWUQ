@@ -52,6 +52,44 @@ void main() {
     expect(await File(bodyPath).readAsString(), 'درس تجريبي');
   });
 
+  test('imports exam questions and links them to the package and lesson', () async {
+    final packageDirectory = await _createPackage(
+      temporaryRoot,
+      content: 'درس تجريبي',
+      exam: {
+        'code': 'practice-01',
+        'title': 'اختبار الوحدة الأولى',
+        'duration_minutes': 15,
+        'questions': [
+          {
+            'code': 'q-01',
+            'type': 'multiple_choice',
+            'prompt': 'اختر الإجابة الصحيحة',
+            'lesson_code': 'lesson-01',
+            'options': [
+              {'value': 'a', 'label': 'أ'},
+              {'value': 'b', 'label': 'ب'}
+            ],
+            'answer': 'b',
+            'answer_key_verified': true,
+            'marks': 2
+          }
+        ]
+      },
+    );
+    final importer = ContentPackageImporter(database: database, packagesDirectory: packagesDirectory);
+    await importer.importDirectory(packageDirectory);
+    final exams = await database.query('exams');
+    final questions = await database.query('questions');
+    final links = await database.query('exam_questions');
+    expect(exams, hasLength(1));
+    expect(exams.single['package_id'], 1);
+    expect(questions, hasLength(1));
+    expect(questions.single['lesson_id'], 1);
+    expect(questions.single['answer_key_verified'], 1);
+    expect(links.single['marks'], 2);
+  });
+
   test('rejects an asset with a mismatched SHA-256 without writing data', () async {
     final packageDirectory = await _createPackage(
       temporaryRoot,
@@ -122,6 +160,29 @@ Future<void> _createSchema(Database db) async {
   await db.execute('CREATE TABLE curriculum_releases (id INTEGER PRIMARY KEY, grade_id INTEGER NOT NULL, track_id INTEGER, academic_year TEXT NOT NULL, edition_code TEXT NOT NULL, verification_status TEXT NOT NULL)');
   await db.execute('CREATE TABLE curriculum_release_subjects (id INTEGER PRIMARY KEY, release_id INTEGER NOT NULL, subject_id INTEGER NOT NULL, verification_status TEXT NOT NULL)');
   await db.execute('''
+    CREATE TABLE exams (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, subject_id INTEGER NOT NULL,
+      title_ar TEXT NOT NULL, exam_type TEXT NOT NULL DEFAULT 'practice',
+      duration_minutes INTEGER, source_label TEXT NOT NULL DEFAULT 'supplemental',
+      package_id INTEGER, content_code TEXT
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, subject_id INTEGER NOT NULL,
+      lesson_id INTEGER, question_type TEXT NOT NULL, prompt_ar TEXT NOT NULL,
+      options_json TEXT, answer_json TEXT, explanation_ar TEXT,
+      difficulty INTEGER NOT NULL DEFAULT 1, source_label TEXT NOT NULL DEFAULT 'supplemental',
+      package_id INTEGER, content_code TEXT, answer_key_verified INTEGER NOT NULL DEFAULT 0
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE exam_questions (
+      exam_id INTEGER NOT NULL, question_id INTEGER NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0, marks REAL NOT NULL DEFAULT 1
+    )
+  ''');
+  await db.execute('''
     CREATE TABLE content_packages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       package_code TEXT NOT NULL UNIQUE,
@@ -180,6 +241,7 @@ Future<Directory> _createPackage(
   String packageCode = 'biology-basics',
   String version = '1.0.0',
   String? declaredHash,
+  Map<String, dynamic>? exam,
 }) async {
   final directory = Directory(parent.path + '/' + packageCode + '-' + version);
   await directory.create(recursive: true);
@@ -213,6 +275,7 @@ Future<Directory> _createPackage(
         ],
       }
     ],
+    'exams': exam == null ? [] : [exam],
     'assets': [
       {
         'path': 'lessons/lesson-01.md',
