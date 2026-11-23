@@ -84,14 +84,14 @@ export async function renderPdfAsset(blob, container) {
   try {
     await drawPage();
   } catch (error) {
-    await pdf.destroy();
+    await loadingTask.destroy();
     throw error;
   }
 
   return async () => {
     disposed = true;
     if (renderTask) { try { renderTask.cancel(); } catch {} }
-    await pdf.destroy();
+    await loadingTask.destroy();
     container.replaceChildren();
   };
 }
