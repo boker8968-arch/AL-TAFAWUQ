@@ -29,21 +29,30 @@ export function validateManifest(m) {
   if (m.notes != null && !Array.isArray(m.notes)) fail('مصفوفة المذكرات غير صالحة.');
   const units = new Set(), lessons = new Set(), exams = new Set(), questions = new Set(), noteCodes = new Set(), assets = new Map(), refs = [];
   for (const unit of m.units) {
+    if (!unit || typeof unit !== 'object' || Array.isArray(unit)) fail('كل وحدة يجب أن تكون كائناً صالحاً.');
     requiredString(unit.code,'unit.code'); requiredString(unit.title,'unit.title');
+    if (unit.sort_order != null && !Number.isInteger(unit.sort_order)) fail('ترتيب الوحدة غير صالح.');
     if (units.has(unit.code)) fail('رمز وحدة مكرر: ' + unit.code); units.add(unit.code);
     if (!Array.isArray(unit.lessons) || !unit.lessons.length) fail('كل وحدة يجب أن تحتوي درساً واحداً على الأقل.');
     for (const lesson of unit.lessons) {
+      if (!lesson || typeof lesson !== 'object' || Array.isArray(lesson)) fail('كل درس يجب أن يكون كائناً صالحاً.');
       requiredString(lesson.code,'lesson.code'); requiredString(lesson.title,'lesson.title');
+      if (lesson.sort_order != null && !Number.isInteger(lesson.sort_order)) fail('ترتيب الدرس غير صالح.');
+      if (lesson.summary != null && typeof lesson.summary !== 'string') fail('ملخص الدرس يجب أن يكون نصاً.');
+      if (lesson.body_file != null && typeof lesson.body_file !== 'string') fail('مسار ملف الدرس يجب أن يكون نصاً.');
       if (lessons.has(lesson.code)) fail('رمز درس مكرر: ' + lesson.code); lessons.add(lesson.code);
       if (lesson.body_file) refs.push(safePath(lesson.body_file,'body_file'));
     }
   }
   for (const note of (m.notes || [])) {
+    if (!note || typeof note !== 'object' || Array.isArray(note)) fail('كل مذكرة يجب أن تكون كائناً صالحاً.');
     requiredString(note.code,'note.code'); requiredString(note.title,'note.title');
+    if (note.summary != null && typeof note.summary !== 'string') fail('ملخص المذكرة يجب أن يكون نصاً.');
     if (noteCodes.has(note.code)) fail('رمز مذكرة مكرر: ' + note.code); noteCodes.add(note.code);
     refs.push(safePath(note.file,'note.file'));
   }
   for (const asset of m.assets) {
+    if (!asset || typeof asset !== 'object' || Array.isArray(asset)) fail('كل ملف داخل assets يجب أن يكون كائناً صالحاً.');
     const path = safePath(asset.path,'asset.path');
     if (path === 'manifest.json' || assets.has(path)) fail('مسار ملف مكرر أو محجوز: ' + path);
     requiredString(asset.media_type,'asset.media_type');
@@ -53,12 +62,14 @@ export function validateManifest(m) {
   }
   for (const path of refs) if (!assets.has(path)) fail('الملف المشار إليه غير مدرج ضمن assets: ' + path);
   for (const exam of (m.exams || [])) {
+    if (!exam || typeof exam !== 'object' || Array.isArray(exam)) fail('كل امتحان يجب أن يكون كائناً صالحاً.');
     requiredString(exam.code,'exam.code'); requiredString(exam.title,'exam.title');
     if (exam.exam_type != null && typeof exam.exam_type !== 'string') fail('نوع الامتحان غير صالح.');
     if (exam.duration_minutes != null && (!Number.isInteger(exam.duration_minutes) || exam.duration_minutes < 0)) fail('مدة الامتحان غير صالحة.');
     if (exams.has(exam.code)) fail('رمز امتحان مكرر: ' + exam.code); exams.add(exam.code);
     if (!Array.isArray(exam.questions) || !exam.questions.length) fail('كل امتحان يجب أن يحتوي أسئلة.');
     for (const q of exam.questions) {
+      if (!q || typeof q !== 'object' || Array.isArray(q)) fail('كل سؤال يجب أن يكون كائناً صالحاً.');
       requiredString(q.code,'question.code'); requiredString(q.type,'question.type'); requiredString(q.prompt,'question.prompt');
       if (questions.has(q.code)) fail('رمز سؤال مكرر: ' + q.code); questions.add(q.code);
       if (!['multiple_choice','true_false','short_answer'].includes(q.type)) fail('نوع سؤال غير مدعوم: ' + q.type);
@@ -66,6 +77,8 @@ export function validateManifest(m) {
       if (q.answer_key_verified != null && typeof q.answer_key_verified !== 'boolean') fail('answer_key_verified يجب أن يكون قيمة منطقية.');
       if (q.difficulty != null && !Number.isInteger(q.difficulty)) fail('مستوى صعوبة السؤال غير صالح.');
       if (q.type === 'multiple_choice' && (!Array.isArray(q.options) || q.options.length < 2)) fail('سؤال الاختيار المتعدد يحتاج خيارين على الأقل.');
+      if (q.lesson_code != null && typeof q.lesson_code !== 'string') fail('رمز درس السؤال يجب أن يكون نصاً.');
+      if (q.explanation != null && typeof q.explanation !== 'string') fail('شرح السؤال يجب أن يكون نصاً.');
       if (q.lesson_code != null && !lessons.has(q.lesson_code)) fail('السؤال يشير إلى درس غير موجود: ' + q.lesson_code);
       if (q.marks != null && (typeof q.marks !== 'number' || q.marks <= 0)) fail('درجة السؤال غير صالحة.');
     }
