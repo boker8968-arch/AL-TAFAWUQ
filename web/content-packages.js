@@ -85,12 +85,17 @@ export function validateManifest(m) {
   }
   return assets;
 }
-function fileMap(files) {
+export function fileMap(files) {
   const map = new Map();
   for (const file of files) {
-    const rel = (file.webkitRelativePath || file.name).split('/').slice(1).join('/');
-    if (rel) { const normalized=rel.replaceAll('\\','/'); if(map.has(normalized)) fail('مسار ملف مكرر داخل المجلد المختار: '+normalized); map.set(normalized,file); }
-    if (file.name === 'manifest.json' && !map.has('manifest.json')) map.set('manifest.json', file);
+    const relative = file.webkitRelativePath
+      ? file.webkitRelativePath.split('/').slice(1).join('/')
+      : file.name;
+    if (relative) {
+      const normalized=relative.replaceAll('\\\\','/');
+      if(map.has(normalized)) fail('مسار ملف مكرر داخل المجلد المختار: '+normalized);
+      map.set(normalized,file);
+    }
   }
   return map;
 }
@@ -99,6 +104,22 @@ async function digest(file) {
   const hash = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(hash)].map(x => x.toString(16).padStart(2,'0')).join('');
 }
+export async function verifyPackageAssets(assetSpecs, fileList) {
+  const byPath = fileMap(fileList);
+  const verifiedFiles = [];
+  let packageBytes = 0;
+  for (const [path, spec] of assetSpecs) {
+    const file = byPath.get(path);
+    if (!file) fail('ملف مفقود من الحزمة: ' + path);
+    if (file.size !== spec.bytes) fail('حجم الملف لا يطابق manifest: ' + path);
+    packageBytes += file.size;
+    if (packageBytes > MAX_PACKAGE_BYTES) fail('حجم الحزمة يتجاوز 200 ميجابايت؛ يرجى تقسيمها إلى حزم أصغر.');
+    if ((await digest(file)) !== spec.sha256.toLowerCase()) fail('فشل التحقق من SHA-256 للملف: ' + path);
+    verifiedFiles.push({path,file,media_type:spec.media_type});
+  }
+  return verifiedFiles;
+}
+
 function req(request) {
   return new Promise((resolve,reject) => { request.onsuccess=()=>resolve(request.result); request.onerror=()=>reject(request.error); });
 }
@@ -112,16 +133,7 @@ export async function importContentPackage(fileList) {
   let manifest;
   try { manifest = JSON.parse(await manifestFile.text()); } catch { fail('تعذر قراءة manifest.json؛ تأكد من صحة JSON.'); }
   const assets = validateManifest(manifest);
-  const verifiedFiles = [];
-  let packageBytes = 0;
-  for (const [path, spec] of assets) {
-    const file = byPath.get(path);
-    if (!file) fail('ملف مفقود من الحزمة: ' + path);
-    if (file.size !== spec.bytes) fail('حجم الملف لا يطابق manifest: ' + path);
-    packageBytes+=file.size;if(packageBytes>MAX_PACKAGE_BYTES)fail('حجم الحزمة يتجاوز 200 ميجابايت؛ يرجى تقسيمها إلى حزم أصغر.');
-    if ((await digest(file)) !== spec.sha256.toLowerCase()) fail('فشل التحقق من SHA-256 للملف: ' + path);
-    verifiedFiles.push({path,file,media_type:spec.media_type});
-  }
+  const verifiedFiles = await verifyPackageAssets(assets, files);
 
   const [grades,subjects,releases,mappings,packages] = await Promise.all(['grades','subjects','curriculum_releases','curriculum_release_subjects','content_packages'].map(getAll));
   const grade = grades.find(x => x.code === manifest.grade_code && x.is_active === 1);
