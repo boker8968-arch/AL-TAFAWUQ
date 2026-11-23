@@ -25,6 +25,8 @@ jobs:
         run: npm install
       - name: Check JavaScript syntax
         run: node --check app.js && node --check database.js && node --check content-packages.js
+      - name: Test content package validation
+        run: npm test
       - name: Build offline web app
         run: npm run build
       - name: Generate Android wrapper
