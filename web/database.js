@@ -1,5 +1,5 @@
 // Browser-side schema mirrors the Flutter SQLite v6 domain and publication rules.
-const DB_NAME='al-tafawuq', DB_VERSION=5;
+const DB_NAME='al-tafawuq', DB_VERSION=6;
 const DEFINITIONS={
  grades:{keyPath:'id'},
  study_tracks:{keyPath:'id',indexes:[['grade_id','grade_id']]},
@@ -18,7 +18,8 @@ const DEFINITIONS={
  student_profiles:{keyPath:'id'},
  content_packages:{keyPath:'id',indexes:[['package_code','package_code'],['review_status','review_status']]},
  content_package_reviews:{keyPath:'id',indexes:[['package_id','package_id']]},
- package_assets:{keyPath:['package_id','path'],indexes:[['package_id','package_id']]},\n study_notes:{keyPath:'id',indexes:[['package_id','package_id'],['subject_id','subject_id']]},
+ package_assets:{keyPath:['package_id','path'],indexes:[['package_id','package_id']]},
+ study_notes:{keyPath:'id',indexes:[['package_id','package_id'],['subject_id','subject_id']]},
  study_sessions:{keyPath:'id',indexes:[['started_at','started_at'],['subject_id','subject_id']]}
 };
 let opening;
