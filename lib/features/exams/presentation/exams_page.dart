@@ -231,19 +231,29 @@ class _QuestionCard extends StatelessWidget {
             Text(question['prompt_ar'] as String,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            for (final option in options)
-              RadioListTile<Object>(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                value: option is Map ? option['value'] as Object : option as Object,
-                groupValue: selected,
-                onChanged: (value) {
-                  if (value != null) onChoose(value);
-                },
-                title: Text(option is Map
-                  ? option['label'].toString()
-                  : option.toString()),
-              ),
+            if (question['question_type'] == 'short_answer')
+              TextFormField(
+                initialValue: selected?.toString(),
+                decoration: const InputDecoration(
+                  hintText: 'اكتب إجابتك هنا',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: onChoose,
+              )
+            else
+              for (final option in options)
+                RadioListTile<Object>(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: option is Map ? option['value'] as Object : option as Object,
+                  groupValue: selected,
+                  onChanged: (value) {
+                    if (value != null) onChoose(value);
+                  },
+                  title: Text(option is Map
+                    ? option['label'].toString()
+                    : option.toString()),
+                ),
           ],
         ),
       ),
