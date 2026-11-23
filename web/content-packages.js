@@ -92,7 +92,7 @@ export function fileMap(files) {
       ? file.webkitRelativePath.split('/').slice(1).join('/')
       : file.name;
     if (relative) {
-      const normalized=relative.replaceAll('\\\\','/');
+      const normalized=relative.split(String.fromCharCode(92)).join('/');
       if(map.has(normalized)) fail('مسار ملف مكرر داخل المجلد المختار: '+normalized);
       map.set(normalized,file);
     }
