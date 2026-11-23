@@ -3,3 +3,5 @@
 .lesson-body{white-space:pre-wrap;overflow-wrap:anywhere;direction:rtl;text-align:right;line-height:1.95;font-size:15px;color:#29463a;background:#fff;border:1px solid #e5eee8;border-radius:14px;padding:16px}
 
 .panel{white-space:pre-line}.exam-timer{position:sticky;top:8px;z-index:2;background:#fff8df;border:1px solid #ead69a;border-radius:12px;padding:10px 14px;color:#705517;font-weight:800;text-align:center;font-variant-numeric:tabular-nums}.content-item.selected{border-color:#087451;background:#e7f3ec;box-shadow:inset 0 0 0 1px #087451}
+
+.pdf-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:2;background:#fff;padding:10px 4px;border-bottom:1px solid #e5eee8}.pdf-toolbar button{border:0;border-radius:10px;background:#087451;color:#fff;padding:9px 12px;font:inherit;font-size:12px}.pdf-toolbar button:disabled{opacity:.4}.pdf-toolbar span{font-size:12px;font-weight:800;color:#315b49}.pdf-page-host{display:flex;justify-content:center;overflow:auto;padding:12px 0}.pdf-page{display:block;max-width:100%;height:auto;background:#fff;box-shadow:0 3px 18px #173c2b22}
