@@ -119,6 +119,9 @@ class ContentPackageImporter {
 
     try {
       for (final asset in manifest.assets) {
+        if (asset.path == 'manifest.json') {
+          throw const FormatException('manifest.json is reserved and cannot be declared as an asset.');
+        }
         final sourceFile = await _resolveSafeAsset(sourceRoot, asset.path);
         final actualLength = await sourceFile.length();
         if (actualLength != asset.bytes) {
