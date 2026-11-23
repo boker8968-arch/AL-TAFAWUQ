@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const databaseName = 'al_tafawuq.db';
-  static const databaseVersion = 5;
+  static const databaseVersion = 6;
 
   Database? _instance;
   Future<Database>? _opening;
@@ -252,6 +252,7 @@ class AppDatabase {
     await _migrateToV3(db);
     await _migrateToV4(db);
     await _migrateToV5(db);
+    await _migrateToV6(db);
   }
 
   Future<void> _migrateToV2(Database db) async {
@@ -450,6 +451,19 @@ class AppDatabase {
     );
   }
 
+  Future<void> _migrateToV6(Database db) async {
+    // Legacy exam rows remain unlinked and are not student-visible.
+    await db.execute('ALTER TABLE exams ADD COLUMN package_id INTEGER REFERENCES content_packages(id) ON DELETE CASCADE');
+    await db.execute('ALTER TABLE exams ADD COLUMN content_code TEXT');
+    await db.execute('ALTER TABLE questions ADD COLUMN package_id INTEGER REFERENCES content_packages(id) ON DELETE CASCADE');
+    await db.execute('ALTER TABLE questions ADD COLUMN content_code TEXT');
+    await db.execute("ALTER TABLE questions ADD COLUMN answer_key_verified INTEGER NOT NULL DEFAULT 0 CHECK (answer_key_verified IN (0, 1))");
+    await db.execute('CREATE UNIQUE INDEX idx_exams_package_code ON exams(package_id, content_code) WHERE package_id IS NOT NULL AND content_code IS NOT NULL');
+    await db.execute('CREATE UNIQUE INDEX idx_questions_package_code ON questions(package_id, content_code) WHERE package_id IS NOT NULL AND content_code IS NOT NULL');
+    await db.execute('CREATE INDEX idx_exams_package ON exams(package_id)');
+    await db.execute('CREATE INDEX idx_questions_package ON questions(package_id)');
+  }
+
   Future<void> _upgradeSchema(
     Database db,
     int oldVersion,
@@ -466,6 +480,9 @@ class AppDatabase {
     }
     if (oldVersion < 5) {
       await _migrateToV5(db);
+    }
+    if (oldVersion < 6) {
+      await _migrateToV6(db);
     }
   }
 
