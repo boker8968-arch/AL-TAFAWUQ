@@ -37,6 +37,19 @@ class CurriculumRepository {
     _requireText(editionCode, 'editionCode');
     _requireText(editionLabel, 'editionLabel');
 
+    if (trackId != null) {
+      final matchingTrack = await _database.query(
+        'study_tracks',
+        columns: ['id'],
+        where: 'id = ? AND grade_id = ?',
+        whereArgs: [trackId, gradeId],
+        limit: 1,
+      );
+      if (matchingTrack.isEmpty) {
+        throw ArgumentError('The selected study track does not belong to the selected grade.');
+      }
+    }
+
     final now = DateTime.now().toUtc().toIso8601String();
     return _database.insert('curriculum_releases', {
       'grade_id': gradeId,
