@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateManifest } from '../content-packages.js';
+import { projectStudentExamQuestion } from '../database.js';
 
 const good = () => ({
   schema_version:1,package_code:'math-supplement',version:'1.0.0',title:'حزمة تجريبية للاختبار',
@@ -53,4 +54,16 @@ test('rejects non-boolean answer key verification flags',()=>{
 test('rejects duplicate package asset paths',()=>{
   const manifest=good();manifest.assets.push({...manifest.assets[0]});
   assert.throws(()=>validateManifest(manifest),/مسار ملف مكرر/);
+});
+
+test('student exam question projection never exposes answer keys or explanations',()=>{
+  const question={id:9,package_id:4,question_type:'multiple_choice',prompt_ar:'سؤال',options_json:'[]',answer_json:'"A"',answer_key_verified:1,explanation_ar:'شرح الإجابة',difficulty:2};
+  const projected=projectStudentExamQuestion(question,{marks:3},4);
+  assert.deepEqual(projected,{id:9,question_type:'multiple_choice',prompt_ar:'سؤال',options_json:'[]',marks:3,difficulty:2});
+  assert.equal('answer_json' in projected,false);
+  assert.equal('answer_key_verified' in projected,false);
+  assert.equal('explanation_ar' in projected,false);
+});
+test('student question projection rejects a question from another package',()=>{
+  assert.equal(projectStudentExamQuestion({id:1,package_id:8},{marks:1},4),null);
 });
