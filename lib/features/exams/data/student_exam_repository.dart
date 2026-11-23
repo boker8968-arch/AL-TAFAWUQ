@@ -201,8 +201,14 @@ class StudentExamRepository {
   }
 
   Future<List<Map<String, Object?>>> getAttemptHistory(int examId) {
-    return _db.query('exam_attempts',
-      where: 'exam_id = ? AND completed_at IS NOT NULL',
-      whereArgs: [examId], orderBy: 'completed_at DESC');
+    return _db.rawQuery('''
+      SELECT a.id, a.exam_id, a.started_at, a.completed_at, a.score, a.total_marks
+      FROM exam_attempts a
+      JOIN exams e ON e.id = a.exam_id
+      JOIN content_packages cp ON cp.id = e.package_id
+      WHERE a.exam_id = ? AND a.completed_at IS NOT NULL
+        AND cp.review_status = 'approved'
+      ORDER BY a.completed_at DESC
+    ''', [examId]);
   }
 }
