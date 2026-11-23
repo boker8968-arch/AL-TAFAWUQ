@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateManifest } from '../content-packages.js';
+import { validateManifest, verifyPackageAssets, fileMap } from '../content-packages.js';
+import { createHash } from 'node:crypto';
 import { projectStudentExamQuestion } from '../database.js';
 
 const good = () => ({
@@ -90,4 +91,28 @@ test('rejects invalid optional lesson field types',()=>{
 test('rejects null exam question objects',()=>{
   const manifest=good();manifest.exams=[{code:'exam-1',title:'امتحان',questions:[null]}];
   assert.throws(()=>validateManifest(manifest),/سؤال يجب أن يكون كائناً صالحاً/);
+});
+
+test('verifies package asset SHA-256 and size before import',async()=>{
+  const file=new File(['hello'],'one.txt',{type:'text/plain'});
+  const sha=createHash('sha256').update('hello').digest('hex');
+  const verified=await verifyPackageAssets(new Map([['one.txt',{bytes:5,sha256:sha,media_type:'text/plain'}]]),[file]);
+  assert.equal(verified.length,1);
+  assert.equal(verified[0].path,'one.txt');
+});
+test('rejects missing package asset files',async()=>{
+  await assert.rejects(()=>verifyPackageAssets(new Map([['missing.txt',{bytes:1,sha256:'a'.repeat(64),media_type:'text/plain'}]]),[]),/ملف مفقود/);
+});
+test('rejects package assets with incorrect SHA-256',async()=>{
+  const file=new File(['hello'],'one.txt');
+  await assert.rejects(()=>verifyPackageAssets(new Map([['one.txt',{bytes:5,sha256:'a'.repeat(64),media_type:'text/plain'}]]),[file]),/SHA-256/);
+});
+test('rejects duplicate relative paths in a selected package folder',()=>{
+  const first=new File(['a'],'same.txt');
+  const second=new File(['b'],'same.txt');
+  assert.throws(()=>fileMap([first,second]),/مسار ملف مكرر/);
+});
+test('rejects package totals above 200 MiB before hashing',async()=>{
+  const oversized={name:'large.bin',size:200*1024*1024+1,arrayBuffer:async()=>new ArrayBuffer(0)};
+  await assert.rejects(()=>verifyPackageAssets(new Map([['large.bin',{bytes:oversized.size,sha256:'a'.repeat(64),media_type:'application/octet-stream'}]]),[oversized]),/200 ميجابايت/);
 });
