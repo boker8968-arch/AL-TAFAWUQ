@@ -8,6 +8,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/content_package_importer.dart';
+import 'content_review_page.dart';
 
 class ContentManagementPage extends StatefulWidget {
   const ContentManagementPage({super.key});
@@ -130,6 +131,15 @@ class _ContentManagementPageState extends State<ContentManagementPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('إدارة المحتوى', style: TextStyle(fontWeight: FontWeight.w800)),
+        actions: [
+          IconButton(
+            tooltip: 'مراجعة واعتماد المحتوى',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ContentReviewPage()),
+            ),
+            icon: const Icon(Icons.fact_check_outlined),
+          ),
+        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
