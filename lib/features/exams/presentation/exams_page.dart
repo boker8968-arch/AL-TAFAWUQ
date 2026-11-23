@@ -30,7 +30,13 @@ class _ExamsPageState extends State<ExamsPage> {
   Future<void> _start(Map<String, Object?> exam) async {
     final db = await AppDatabase.instance.database;
     final repository = StudentExamRepository(db);
-    final attemptId = await repository.startAttempt(exam['id'] as int);
+    final profile = await StudentRepository().getStudentProfile();
+    if (profile == null) return;
+    final attemptId = await repository.startAttempt(
+      examId: exam['id'] as int,
+      gradeId: profile.gradeId,
+      trackId: profile.trackId,
+    );
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => ExamAttemptPage(
