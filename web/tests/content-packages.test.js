@@ -76,3 +76,18 @@ test('accepts a PDF asset MIME type',()=>{
   const manifest=good();manifest.assets[0].media_type='application/pdf';
   assert.equal(validateManifest(manifest).size,1);
 });
+
+test('rejects null nested units and lessons instead of throwing raw type errors',()=>{
+  const manifest=good();manifest.units[0]=null;
+  assert.throws(()=>validateManifest(manifest),/وحدة يجب أن تكون كائناً صالحاً/);
+  const second=good();second.units[0].lessons[0]=null;
+  assert.throws(()=>validateManifest(second),/درس يجب أن يكون كائناً صالحاً/);
+});
+test('rejects invalid optional lesson field types',()=>{
+  const manifest=good();manifest.units[0].lessons[0].summary={text:'not a string'};
+  assert.throws(()=>validateManifest(manifest),/ملخص الدرس يجب أن يكون نصاً/);
+});
+test('rejects null exam question objects',()=>{
+  const manifest=good();manifest.exams=[{code:'exam-1',title:'امتحان',questions:[null]}];
+  assert.throws(()=>validateManifest(manifest),/سؤال يجب أن يكون كائناً صالحاً/);
+});
