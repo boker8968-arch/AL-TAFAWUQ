@@ -23,8 +23,8 @@ function validateManifest(m) {
   if (!SAFE_SEGMENT.test(m.package_code) || !SAFE_SEGMENT.test(m.version)) fail('رمز الحزمة أو الإصدار غير صالح للتخزين.');
   if (m.source_label !== 'supplemental') fail('يُسمح حالياً باستيراد الحزم التكميلية فقط.');
   if (!Array.isArray(m.units) || !m.units.length || !Array.isArray(m.assets)) fail('يجب أن تحتوي الحزمة على وحدات ومصفوفة ملفات.');
-  if (m.exams != null && !Array.isArray(m.exams)) fail('مصفوفة الامتحانات غير صالحة.');
-  const units = new Set(), lessons = new Set(), exams = new Set(), questions = new Set(), assets = new Map(), refs = [];
+  if (m.exams != null && !Array.isArray(m.exams)) fail('مصفوفة الامتحانات غير صالحة.');\n  if (m.notes != null && !Array.isArray(m.notes)) fail('مصفوفة المذكرات غير صالحة.');
+  const units = new Set(), lessons = new Set(), exams = new Set(), questions = new Set(), noteCodes = new Set(), assets = new Map(), refs = [];
   for (const unit of m.units) {
     requiredString(unit.code,'unit.code'); requiredString(unit.title,'unit.title');
     if (units.has(unit.code)) fail('رمز وحدة مكرر: ' + unit.code); units.add(unit.code);
@@ -35,7 +35,7 @@ function validateManifest(m) {
       if (lesson.body_file) refs.push(safePath(lesson.body_file,'body_file'));
     }
   }
-  for (const asset of m.assets) {
+  for (const note of (m.notes || [])) {\n    requiredString(note.code,'note.code'); requiredString(note.title,'note.title');\n    if (noteCodes.has(note.code)) fail('رمز مذكرة مكرر: ' + note.code); noteCodes.add(note.code);\n    refs.push(safePath(note.file,'note.file'));\n  }\n  for (const asset of m.assets) {
     const path = safePath(asset.path,'asset.path');
     if (path === 'manifest.json' || assets.has(path)) fail('مسار ملف مكرر أو محجوز: ' + path);
     if (!Number.isSafeInteger(asset.bytes) || asset.bytes < 0 || !SHA256.test(asset.sha256 || '')) fail('بيانات حجم أو بصمة الملف غير صالحة: ' + path);
@@ -107,7 +107,7 @@ export async function importContentPackage(fileList) {
   const mapping = matches[0];
   const manifestChecksum = await digest(manifestFile);
   const db = await openDb();
-  const names = ['content_packages','curriculum_units','lessons','exams','questions','exam_questions','package_assets'];
+  const names = ['content_packages','curriculum_units','lessons','exams','questions','exam_questions','package_assets','study_notes'];
   const tx = db.transaction(names,'readwrite');
   const packageStore = tx.objectStore('content_packages');
   const packageRequest = packageStore.add({
@@ -162,7 +162,7 @@ export async function importContentPackage(fileList) {
         }
       };
     }
-    for (const item of verifiedFiles) tx.objectStore('package_assets').add({
+    for (const note of (manifest.notes || [])) tx.objectStore('study_notes').add({\n      subject_id:subject.id,package_id:packageId,content_code:note.code,title_ar:note.title,\n      summary_ar:note.summary||null,body_path:safePath(note.file,'note.file'),category:'المذكرات'\n    });\n    for (const item of verifiedFiles) tx.objectStore('package_assets').add({
       package_id:packageId,path:item.path,blob:item.file,media_type:item.media_type
     });
   };
