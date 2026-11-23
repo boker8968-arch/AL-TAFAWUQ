@@ -128,7 +128,12 @@ Future<void> _createSchema(Database db) async {
       version TEXT NOT NULL,
       manifest_path TEXT NOT NULL,
       imported_at TEXT NOT NULL,
-      checksum TEXT NOT NULL
+      checksum TEXT NOT NULL,
+      source_label TEXT NOT NULL DEFAULT 'supplemental',
+      review_status TEXT NOT NULL DEFAULT 'pending_review',
+      reviewed_at TEXT,
+      reviewer_label TEXT,
+      review_notes TEXT
     )
   ''');
   await db.execute('''
