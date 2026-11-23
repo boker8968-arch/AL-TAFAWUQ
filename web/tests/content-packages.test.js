@@ -67,3 +67,12 @@ test('student exam question projection never exposes answer keys or explanations
 test('student question projection rejects a question from another package',()=>{
   assert.equal(projectStudentExamQuestion({id:1,package_id:8},{marks:1},4),null);
 });
+
+test('rejects assets larger than the per-file offline import limit',()=>{
+  const manifest=good();manifest.assets[0].bytes=50*1024*1024+1;
+  assert.throws(()=>validateManifest(manifest),/تجاوز الملف الحد المسموح/);
+});
+test('accepts a PDF asset MIME type',()=>{
+  const manifest=good();manifest.assets[0].media_type='application/pdf';
+  assert.equal(validateManifest(manifest).size,1);
+});
