@@ -92,6 +92,5 @@ export async function renderPdfAsset(blob, container) {
     disposed = true;
     if (renderTask) { try { renderTask.cancel(); } catch {} }
     await loadingTask.destroy();
-    container.replaceChildren();
   };
 }
