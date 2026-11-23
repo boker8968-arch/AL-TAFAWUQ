@@ -40,7 +40,7 @@ void main() {
 
   test('hides unpublished exams and exposes no answer key during an attempt', () async {
     expect(await repository.getPublishedExams(gradeId: 3), hasLength(1));
-    final attemptId = await repository.startAttempt(1);
+    final attemptId = await repository.startAttempt(examId: 1, gradeId: 3);
     final questions = await repository.getAttemptQuestions(attemptId);
     expect(questions.single.containsKey('answer_json'), isFalse);
     await repository.saveAnswer(attemptId: attemptId, questionId: 1, answer: 'b');
@@ -50,9 +50,19 @@ void main() {
     expect((await db.query('attempt_answers')).single['is_correct'], 1);
   });
 
+  test('does not allow an exam from another grade', () async {
+    await expectLater(
+      repository.startAttempt(examId: 1, gradeId: 2),
+      throwsA(isA<StateError>()),
+    );
+  });
+
   test('does not list exams from pending packages', () async {
     await db.update('content_packages', {'review_status': 'pending_review'});
     expect(await repository.getPublishedExams(gradeId: 3), isEmpty);
-    await expectLater(repository.startAttempt(1), throwsA(isA<StateError>()));
+    await expectLater(
+      repository.startAttempt(examId: 1, gradeId: 3),
+      throwsA(isA<StateError>()),
+    );
   });
 }
