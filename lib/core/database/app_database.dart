@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const databaseName = 'al_tafawuq.db';
-  static const databaseVersion = 2;
+  static const databaseVersion = 3;
 
   Database? _instance;
   Future<Database>? _opening;
@@ -249,6 +249,7 @@ class AppDatabase {
     });
     await batch.commit(noResult: true);
     await _migrateToV2(db);
+    await _migrateToV3(db);
   }
 
   Future<void> _migrateToV2(Database db) async {
@@ -349,6 +350,35 @@ class AppDatabase {
     ''');
   }
 
+  Future<void> _migrateToV3(Database db) async {
+    // Package ownership and stable content codes make imports traceable and
+    // prevent duplicate units/lessons while preserving all legacy rows.
+    await db.execute('''
+      ALTER TABLE curriculum_units
+      ADD COLUMN package_id INTEGER
+      REFERENCES content_packages(id) ON DELETE CASCADE
+    ''');
+    await db.execute('''
+      ALTER TABLE curriculum_units ADD COLUMN content_code TEXT
+    ''');
+    await db.execute('''
+      ALTER TABLE lessons ADD COLUMN content_code TEXT
+    ''');
+    await db.execute('''
+      CREATE UNIQUE INDEX idx_units_package_code
+      ON curriculum_units(package_id, content_code)
+      WHERE package_id IS NOT NULL AND content_code IS NOT NULL
+    ''');
+    await db.execute('''
+      CREATE UNIQUE INDEX idx_lessons_unit_code
+      ON lessons(unit_id, content_code)
+      WHERE content_code IS NOT NULL
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_units_package ON curriculum_units(package_id)',
+    );
+  }
+
   Future<void> _upgradeSchema(
     Database db,
     int oldVersion,
@@ -356,6 +386,9 @@ class AppDatabase {
   ) async {
     if (oldVersion < 2) {
       await _migrateToV2(db);
+    }
+    if (oldVersion < 3) {
+      await _migrateToV3(db);
     }
   }
 
