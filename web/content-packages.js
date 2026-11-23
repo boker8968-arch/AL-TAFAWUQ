@@ -44,19 +44,25 @@ export function validateManifest(m) {
   for (const asset of m.assets) {
     const path = safePath(asset.path,'asset.path');
     if (path === 'manifest.json' || assets.has(path)) fail('مسار ملف مكرر أو محجوز: ' + path);
-    requiredString(asset.media_type,'asset.media_type');\n    if (!Number.isSafeInteger(asset.bytes) || asset.bytes < 0 || !SHA256.test(asset.sha256 || '')) fail('بيانات حجم أو بصمة الملف غير صالحة: ' + path);
+    requiredString(asset.media_type,'asset.media_type');
+    if (!Number.isSafeInteger(asset.bytes) || asset.bytes < 0 || !SHA256.test(asset.sha256 || '')) fail('بيانات حجم أو بصمة الملف غير صالحة: ' + path);
     assets.set(path, asset);
   }
   for (const path of refs) if (!assets.has(path)) fail('ملف الدرس غير مدرج ضمن assets: ' + path);
   for (const exam of (m.exams || [])) {
-    requiredString(exam.code,'exam.code'); requiredString(exam.title,'exam.title');\n    if (exam.exam_type != null && typeof exam.exam_type !== 'string') fail('نوع الامتحان غير صالح.');\n    if (exam.duration_minutes != null && !Number.isInteger(exam.duration_minutes)) fail('مدة الامتحان غير صالحة.');
+    requiredString(exam.code,'exam.code'); requiredString(exam.title,'exam.title');
+    if (exam.exam_type != null && typeof exam.exam_type !== 'string') fail('نوع الامتحان غير صالح.');
+    if (exam.duration_minutes != null && !Number.isInteger(exam.duration_minutes)) fail('مدة الامتحان غير صالحة.');
     if (exams.has(exam.code)) fail('رمز امتحان مكرر: ' + exam.code); exams.add(exam.code);
     if (!Array.isArray(exam.questions) || !exam.questions.length) fail('كل امتحان يجب أن يحتوي أسئلة.');
     for (const q of exam.questions) {
       requiredString(q.code,'question.code'); requiredString(q.type,'question.type'); requiredString(q.prompt,'question.prompt');
       if (questions.has(q.code)) fail('رمز سؤال مكرر: ' + q.code); questions.add(q.code);
       if (!['multiple_choice','true_false','short_answer'].includes(q.type)) fail('نوع سؤال غير مدعوم: ' + q.type);
-      if (q.options != null && !Array.isArray(q.options)) fail('خيارات السؤال يجب أن تكون مصفوفة.');\n      if (q.answer_key_verified != null && typeof q.answer_key_verified !== 'boolean') fail('answer_key_verified يجب أن يكون قيمة منطقية.');\n      if (q.difficulty != null && !Number.isInteger(q.difficulty)) fail('مستوى صعوبة السؤال غير صالح.');\n      if (q.type === 'multiple_choice' && (!Array.isArray(q.options) || q.options.length < 2)) fail('سؤال الاختيار المتعدد يحتاج خيارين على الأقل.');
+      if (q.options != null && !Array.isArray(q.options)) fail('خيارات السؤال يجب أن تكون مصفوفة.');
+      if (q.answer_key_verified != null && typeof q.answer_key_verified !== 'boolean') fail('answer_key_verified يجب أن يكون قيمة منطقية.');
+      if (q.difficulty != null && !Number.isInteger(q.difficulty)) fail('مستوى صعوبة السؤال غير صالح.');
+      if (q.type === 'multiple_choice' && (!Array.isArray(q.options) || q.options.length < 2)) fail('سؤال الاختيار المتعدد يحتاج خيارين على الأقل.');
       if (q.lesson_code != null && !lessons.has(q.lesson_code)) fail('السؤال يشير إلى درس غير موجود: ' + q.lesson_code);
       if (q.marks != null && (typeof q.marks !== 'number' || q.marks <= 0)) fail('درجة السؤال غير صالحة.');
     }
