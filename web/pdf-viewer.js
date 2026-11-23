@@ -1,15 +1,16 @@
 import * as pdfjsLib from './vendor/pdfjs/pdf.mjs';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdfjs/pdf.worker.mjs', import.meta.url).toString();
+const pdfAssetBase = new URL('./vendor/pdfjs/', import.meta.url);
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdf.worker.mjs', pdfAssetBase).toString();
 
 export async function renderPdfAsset(blob, container) {
   const data = new Uint8Array(await blob.arrayBuffer());
   const loadingTask = pdfjsLib.getDocument({
     data,
-    cMapUrl: './vendor/pdfjs/cmaps/',
+    cMapUrl: new URL('cmaps/', pdfAssetBase).toString(),
     cMapPacked: true,
-    standardFontDataUrl: './vendor/pdfjs/standard_fonts/',
-    wasmUrl: './vendor/pdfjs/wasm/',
+    standardFontDataUrl: new URL('standard_fonts/', pdfAssetBase).toString(),
+    wasmUrl: new URL('wasm/', pdfAssetBase).toString(),
     isEvalSupported: false
   });
   const pdf = await loadingTask.promise;
