@@ -35,7 +35,7 @@ class _ContentManagementPageState extends State<ContentManagementPage> {
       final db = await AppDatabase.instance.database;
       final rows = await db.query(
         'content_packages',
-        columns: ['id', 'package_code', 'version', 'imported_at'],
+        columns: ['id', 'package_code', 'version', 'imported_at', 'review_status', 'source_label'],
         orderBy: 'imported_at DESC',
       );
       if (!mounted) return;
@@ -318,7 +318,16 @@ class _ContentManagementPageState extends State<ContentManagementPage> {
         ),
         title: Text(package['package_code']! as String, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         subtitle: Text('الإصدار ' + (package['version']! as String)),
-        trailing: const Icon(Icons.verified_outlined, color: AppColors.emerald),
+        trailing: Text(
+          package['review_status'] == 'approved' ? 'معتمدة' :
+              package['review_status'] == 'rejected' ? 'مرفوضة' : 'قيد المراجعة',
+          style: TextStyle(
+            color: package['review_status'] == 'approved' ? AppColors.emerald :
+                package['review_status'] == 'rejected' ? Colors.red.shade700 : Colors.orange.shade800,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
