@@ -18,7 +18,7 @@ const DEFINITIONS={
  student_profiles:{keyPath:'id'},
  content_packages:{keyPath:'id',indexes:[['package_code','package_code'],['review_status','review_status']]},
  content_package_reviews:{keyPath:'id',indexes:[['package_id','package_id']]},
- package_assets:{keyPath:['package_id','path'],indexes:[['package_id','package_id']]},
+ package_assets:{keyPath:['package_id','path'],indexes:[['package_id','package_id']]},\n study_notes:{keyPath:'id',indexes:[['package_id','package_id'],['subject_id','subject_id']]},
  study_sessions:{keyPath:'id',indexes:[['started_at','started_at'],['subject_id','subject_id']]}
 };
 let opening;
@@ -85,4 +85,17 @@ export async function submitExamAttempt(attemptId){
 }
 export async function getAttemptHistory(examId){
   return (await getAll('exam_attempts')).filter(x=>x.exam_id===Number(examId)&&x.completed_at).sort((a,b)=>b.completed_at.localeCompare(a.completed_at));
+}
+
+export async function getPublishedNotes({gradeId,trackId=null}={}){
+ const [notes,subjects,packages,units,mappings,releases]=await Promise.all(['study_notes','subjects','content_packages','curriculum_units','curriculum_release_subjects','curriculum_releases'].map(getAll));
+ return notes.filter(note=>{
+  const subject=subjects.find(s=>s.id===note.subject_id),pkg=packages.find(p=>p.id===note.package_id);
+  const unit=units.find(u=>u.package_id===note.package_id&&u.subject_id===note.subject_id);
+  const mapping=unit&&mappings.find(m=>m.id===unit.release_subject_id);
+  const release=mapping&&releases.find(r=>r.id===mapping.release_id);
+  return subject&&subject.grade_id===Number(gradeId)&&
+   (trackId===null?subject.track_id==null:(subject.track_id==null||subject.track_id===Number(trackId)))&&
+   pkg?.review_status==='approved'&&mapping?.verification_status==='verified'&&release?.verification_status==='verified';
+ }).map(note=>({...note,subject_name:subjects.find(s=>s.id===note.subject_id)?.name_ar,category:'المذكرات'}));
 }
