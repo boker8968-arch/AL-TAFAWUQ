@@ -1,7 +1,9 @@
 import { getAll, openDb } from './database.js';
 
 const SAFE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
-const SHA256 = /^[a-f0-9]{64}$/i;\nconst MAX_ASSET_BYTES = 50 * 1024 * 1024;\nconst MAX_PACKAGE_BYTES = 200 * 1024 * 1024;
+const SHA256 = /^[a-f0-9]{64}$/i;
+const MAX_ASSET_BYTES = 50 * 1024 * 1024;
+const MAX_PACKAGE_BYTES = 200 * 1024 * 1024;
 
 function fail(message) { throw new Error(message); }
 function requiredString(value, field) {
@@ -45,14 +47,15 @@ export function validateManifest(m) {
     const path = safePath(asset.path,'asset.path');
     if (path === 'manifest.json' || assets.has(path)) fail('مسار ملف مكرر أو محجوز: ' + path);
     requiredString(asset.media_type,'asset.media_type');
-    if (!/^[a-z0-9.+-]+\\/[a-z0-9.+-]+$/i.test(asset.media_type)) fail('نوع الملف غير صالح: ' + path);\n    if (!Number.isSafeInteger(asset.bytes) || asset.bytes < 0 || asset.bytes > MAX_ASSET_BYTES || !SHA256.test(asset.sha256 || '')) fail('بيانات حجم أو بصمة الملف غير صالحة أو تجاوز الملف الحد المسموح: ' + path);
+    if (!/^[a-z0-9.+-]+\/[a-z0-9.+-]+$/i.test(asset.media_type)) fail('نوع الملف غير صالح: ' + path);
+    if (!Number.isSafeInteger(asset.bytes) || asset.bytes < 0 || asset.bytes > MAX_ASSET_BYTES || !SHA256.test(asset.sha256 || '')) fail('بيانات حجم أو بصمة الملف غير صالحة أو تجاوز الملف الحد المسموح: ' + path);
     assets.set(path, asset);
   }
   for (const path of refs) if (!assets.has(path)) fail('الملف المشار إليه غير مدرج ضمن assets: ' + path);
   for (const exam of (m.exams || [])) {
     requiredString(exam.code,'exam.code'); requiredString(exam.title,'exam.title');
     if (exam.exam_type != null && typeof exam.exam_type !== 'string') fail('نوع الامتحان غير صالح.');
-    if (exam.duration_minutes != null && !Number.isInteger(exam.duration_minutes)) fail('مدة الامتحان غير صالحة.');
+    if (exam.duration_minutes != null && (!Number.isInteger(exam.duration_minutes) || exam.duration_minutes < 0)) fail('مدة الامتحان غير صالحة.');
     if (exams.has(exam.code)) fail('رمز امتحان مكرر: ' + exam.code); exams.add(exam.code);
     if (!Array.isArray(exam.questions) || !exam.questions.length) fail('كل امتحان يجب أن يحتوي أسئلة.');
     for (const q of exam.questions) {
@@ -99,7 +102,8 @@ export async function importContentPackage(fileList) {
   for (const [path, spec] of assets) {
     const file = byPath.get(path);
     if (!file) fail('ملف مفقود من الحزمة: ' + path);
-    if (file.size !== spec.bytes) fail('حجم الملف لا يطابق manifest: ' + path);\n    packageBytes+=file.size;if(packageBytes>MAX_PACKAGE_BYTES)fail('حجم الحزمة يتجاوز 200 ميجابايت؛ يرجى تقسيمها إلى حزم أصغر.');
+    if (file.size !== spec.bytes) fail('حجم الملف لا يطابق manifest: ' + path);
+    packageBytes+=file.size;if(packageBytes>MAX_PACKAGE_BYTES)fail('حجم الحزمة يتجاوز 200 ميجابايت؛ يرجى تقسيمها إلى حزم أصغر.');
     if ((await digest(file)) !== spec.sha256.toLowerCase()) fail('فشل التحقق من SHA-256 للملف: ' + path);
     verifiedFiles.push({path,file,media_type:spec.media_type});
   }
