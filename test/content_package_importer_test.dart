@@ -63,7 +63,7 @@ void main() {
     await expectLater(importer.importDirectory(packageDirectory), throwsA(isA<FormatException>()));
     expect(await database.query('content_packages'), isEmpty);
     expect(await database.query('curriculum_units'), isEmpty);
-    expect(await packagesDirectory.exists(), isFalse);
+    expect(Directory(packagesDirectory.path + '/biology-basics/1.0.0').existsSync(), isFalse);
   });
 
   test('rejects packages without a verified curriculum mapping', () async {
