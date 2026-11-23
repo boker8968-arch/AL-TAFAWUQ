@@ -129,3 +129,11 @@ export async function getPublishedNotes({gradeId,trackId=null}={}){
    pkg?.review_status==='approved'&&mapping?.verification_status==='verified'&&release?.verification_status==='verified';
  }).map(note=>({...note,subject_name:subjects.find(s=>s.id===note.subject_id)?.name_ar,category:'المذكرات'}));
 }
+
+export async function getPackageAsset(packageId,relativePath){
+ const db=await openDb();
+ const tx=db.transaction('package_assets','readonly');
+ const row=await new Promise((resolve,reject)=>{const request=tx.objectStore('package_assets').get([Number(packageId),relativePath]);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+ if(!row||!(row.blob instanceof Blob))throw new Error('ملف المحتوى غير موجود داخل الحزمة المحلية.');
+ return {blob:row.blob,media_type:row.media_type||row.blob.type||'application/octet-stream'};
+}
