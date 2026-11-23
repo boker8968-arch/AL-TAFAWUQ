@@ -16,6 +16,7 @@ class ContentPackageManifest {
     required this.sourceLabel,
     required this.units,
     required this.assets,
+    required this.exams,
   });
 
   final int schemaVersion;
@@ -29,6 +30,7 @@ class ContentPackageManifest {
   final String sourceLabel;
   final List<ContentPackageUnit> units;
   final List<ContentPackageAsset> assets;
+  final List<ContentPackageExam> exams;
 
   factory ContentPackageManifest.fromJson(String source) {
     final decoded = jsonDecode(source);
@@ -46,7 +48,8 @@ class ContentPackageManifest {
 
     final rawUnits = map['units'];
     final rawAssets = map['assets'];
-    if (rawUnits is! List || rawAssets is! List) {
+    final rawExams = map['exams'] ?? const [];
+    if (rawUnits is! List || rawAssets is! List || rawExams is! List) {
       throw const FormatException('Manifest units and assets must be arrays.');
     }
 
@@ -65,6 +68,12 @@ class ContentPackageManifest {
           throw const FormatException('Each unit must be a JSON object.');
         }
         return ContentPackageUnit.fromMap(item);
+      }).toList(growable: false),
+      exams: rawExams.map((item) {
+        if (item is! Map<String, dynamic>) {
+          throw const FormatException('Each exam must be a JSON object.');
+        }
+        return ContentPackageExam.fromMap(item);
       }).toList(growable: false),
       assets: rawAssets.map((item) {
         if (item is! Map<String, dynamic>) {
@@ -96,6 +105,8 @@ class ContentPackageManifest {
     final lessonCodes = <String>{};
     final referencedFiles = <String>{};
     final assetPaths = <String>{};
+    final examCodes = <String>{};
+    final questionCodes = <String>{};
     for (final unit in units) {
       if (!unitCodes.add(unit.code)) {
         throw FormatException('Duplicate unit code: ${unit.code}');
@@ -110,6 +121,22 @@ class ContentPackageManifest {
         if (lesson.bodyFile != null) {
           _validateRelativePath(lesson.bodyFile!, 'lesson body_file');
           referencedFiles.add(lesson.bodyFile!);
+        }
+      }
+    }
+    for (final exam in exams) {
+      if (!examCodes.add(exam.code)) throw FormatException('Duplicate exam code: ${exam.code}');
+      if (exam.questions.isEmpty) throw FormatException('Exam ${exam.code} must contain questions.');
+      for (final question in exam.questions) {
+        if (!questionCodes.add(question.code)) throw FormatException('Duplicate question code: ${question.code}');
+        if (!{'multiple_choice', 'true_false', 'short_answer'}.contains(question.type)) {
+          throw FormatException('Unsupported question type: ${question.type}');
+        }
+        if (question.type == 'multiple_choice' && (question.options == null || question.options!.length < 2)) {
+          throw FormatException('Multiple-choice question ${question.code} requires at least two options.');
+        }
+        if (question.answerKeyVerified && question.answer == null) {
+          throw FormatException('Verified answer key missing for question ${question.code}.');
         }
       }
     }
@@ -181,6 +208,95 @@ class ContentPackageLesson {
       sortOrder: _optionalInt(map, 'sort_order', 0),
       summary: _optionalString(map, 'summary'),
       bodyFile: _optionalString(map, 'body_file'),
+    );
+  }
+}
+
+class ContentPackageExam {
+  const ContentPackageExam({
+    required this.code,
+    required this.title,
+    required this.examType,
+    required this.questions,
+    this.durationMinutes,
+  });
+
+  final String code;
+  final String title;
+  final String examType;
+  final int? durationMinutes;
+  final List<ContentPackageQuestion> questions;
+
+  factory ContentPackageExam.fromMap(Map<String, dynamic> map) {
+    final rawQuestions = map['questions'];
+    if (rawQuestions is! List) {
+      throw const FormatException('Exam questions must be an array.');
+    }
+    return ContentPackageExam(
+      code: _requiredString(map, 'code'),
+      title: _requiredString(map, 'title'),
+      examType: _optionalString(map, 'exam_type') ?? 'practice',
+      durationMinutes: map['duration_minutes'] == null
+          ? null : _optionalInt(map, 'duration_minutes', 0),
+      questions: rawQuestions.map((item) {
+        if (item is! Map<String, dynamic>) {
+          throw const FormatException('Each question must be a JSON object.');
+        }
+        return ContentPackageQuestion.fromMap(item);
+      }).toList(growable: false),
+    );
+  }
+}
+
+class ContentPackageQuestion {
+  const ContentPackageQuestion({
+    required this.code,
+    required this.type,
+    required this.prompt,
+    required this.difficulty,
+    required this.marks,
+    this.lessonCode,
+    this.options,
+    this.answer,
+    this.explanation,
+    this.answerKeyVerified = false,
+  });
+
+  final String code;
+  final String type;
+  final String prompt;
+  final int difficulty;
+  final double marks;
+  final String? lessonCode;
+  final List<Object?>? options;
+  final Object? answer;
+  final String? explanation;
+  final bool answerKeyVerified;
+
+  factory ContentPackageQuestion.fromMap(Map<String, dynamic> map) {
+    final rawOptions = map['options'];
+    if (rawOptions != null && rawOptions is! List) {
+      throw const FormatException('Question options must be an array.');
+    }
+    final rawVerified = map['answer_key_verified'] ?? false;
+    if (rawVerified is! bool) {
+      throw const FormatException('answer_key_verified must be boolean.');
+    }
+    final rawMarks = map['marks'] ?? 1;
+    if (rawMarks is! num || rawMarks <= 0) {
+      throw const FormatException('Question marks must be a positive number.');
+    }
+    return ContentPackageQuestion(
+      code: _requiredString(map, 'code'),
+      type: _requiredString(map, 'type'),
+      prompt: _requiredString(map, 'prompt'),
+      lessonCode: _optionalString(map, 'lesson_code'),
+      options: rawOptions == null ? null : List<Object?>.from(rawOptions),
+      answer: map['answer'],
+      explanation: _optionalString(map, 'explanation'),
+      difficulty: _optionalInt(map, 'difficulty', 1),
+      marks: rawMarks.toDouble(),
+      answerKeyVerified: rawVerified,
     );
   }
 }
