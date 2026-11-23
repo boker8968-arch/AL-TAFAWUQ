@@ -95,6 +95,7 @@ class ContentPackageManifest {
     final unitCodes = <String>{};
     final lessonCodes = <String>{};
     final referencedFiles = <String>{};
+    final assetPaths = <String>{};
     for (final unit in units) {
       if (!unitCodes.add(unit.code)) {
         throw FormatException('Duplicate unit code: ${unit.code}');
