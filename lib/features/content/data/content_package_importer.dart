@@ -158,6 +158,7 @@ class ContentPackageImporter {
           'review_status': 'pending_review',
         });
 
+        final lessonIdsByCode = <String, int>{};
         for (final unit in manifest.units) {
           final unitId = await txn.insert('curriculum_units', {
             'subject_id': matches.single['subject_id'],
@@ -169,7 +170,7 @@ class ContentPackageImporter {
             'source_label': manifest.sourceLabel,
           });
           for (final lesson in unit.lessons) {
-            await txn.insert('lessons', {
+            final lessonId = await txn.insert('lessons', {
               'unit_id': unitId,
               'content_code': lesson.code,
               'title_ar': lesson.title,
@@ -179,6 +180,46 @@ class ContentPackageImporter {
                   : p.join(finalDirectory.path, lesson.bodyFile!),
               'sort_order': lesson.sortOrder,
               'content_version': manifest.version,
+            });
+            lessonIdsByCode[lesson.code] = lessonId;
+          }
+        }
+        for (final exam in manifest.exams) {
+          final examId = await txn.insert('exams', {
+            'subject_id': matches.single['subject_id'],
+            'package_id': id,
+            'content_code': exam.code,
+            'title_ar': exam.title,
+            'exam_type': exam.examType,
+            'duration_minutes': exam.durationMinutes,
+            'source_label': manifest.sourceLabel,
+          });
+          for (var index = 0; index < exam.questions.length; index++) {
+            final question = exam.questions[index];
+            final lessonId = question.lessonCode == null
+                ? null : lessonIdsByCode[question.lessonCode];
+            if (question.lessonCode != null && lessonId == null) {
+              throw FormatException('Unknown lesson_code ${question.lessonCode} in question ${question.code}.');
+            }
+            final questionId = await txn.insert('questions', {
+              'subject_id': matches.single['subject_id'],
+              'lesson_id': lessonId,
+              'package_id': id,
+              'content_code': question.code,
+              'question_type': question.type,
+              'prompt_ar': question.prompt,
+              'options_json': question.options == null ? null : jsonEncode(question.options),
+              'answer_json': question.answer == null ? null : jsonEncode(question.answer),
+              'explanation_ar': question.explanation,
+              'difficulty': question.difficulty,
+              'source_label': manifest.sourceLabel,
+              'answer_key_verified': question.answerKeyVerified ? 1 : 0,
+            });
+            await txn.insert('exam_questions', {
+              'exam_id': examId,
+              'question_id': questionId,
+              'sort_order': index,
+              'marks': question.marks,
             });
           }
         }
