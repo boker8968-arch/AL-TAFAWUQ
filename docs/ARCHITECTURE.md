@@ -48,3 +48,7 @@ Official Sudanese curriculum materials are the primary source. Grade/track struc
 ## Current implementation status
 
 The Flutter shell, local database schemas v1–v5, curriculum repository, manifest parser, verified local content importer, editorial review workflow, student publication/progress repository, initial offline library, and text lesson reader are present in the repository. Flutter analysis, automated test execution, Android build verification, and device-level import testing have not yet been confirmed in an available Flutter environment. Flutter analysis, automated test execution, Android build verification, and device-level import testing have not yet been confirmed in an available Flutter environment.
+
+## Offline exam workflow
+
+Schema v6 scopes exams and questions to their originating content package and stable content codes. The manifest may optionally declare exams and typed questions; the importer inserts them atomically with the package's units and lessons. Legacy exam rows without package ownership remain hidden from students. `StudentExamRepository` is the student-facing exam boundary: it filters to approved packages and verified curriculum release mappings, creates local attempts, stores answers, and never returns answer keys to the active attempt UI. Automatic grading is limited to multiple-choice and true/false items whose answer key was explicitly marked verified; short answers are stored but are not auto-graded.
