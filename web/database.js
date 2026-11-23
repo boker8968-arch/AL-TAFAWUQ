@@ -108,7 +108,7 @@ export async function recordLessonStudySession(lessonId,startedAt,endedAt=new Da
 }
 export async function getStudentDashboard({gradeId,trackId=null}={}){
  const units=await getApprovedUnits({gradeId,trackId});
- const [allLessons,progress,subjects,sessions,attempts,exams,packages]=await Promise.all(['lessons','study_progress','subjects','study_sessions','exam_attempts','exams','content_packages'].map(getAll));
+ const [allLessons,progress,sessions,attempts]=await Promise.all(['lessons','study_progress','study_sessions','exam_attempts'].map(getAll));
  const unitIds=new Set(units.map(u=>u.id)),lessonRows=allLessons.filter(l=>unitIds.has(l.unit_id));
  const lessonIds=new Set(lessonRows.map(l=>l.id)),completed=progress.filter(p=>lessonIds.has(p.lesson_id)&&p.status==='completed').length;
  const subjectIds=new Set(units.map(u=>u.subject_id));
