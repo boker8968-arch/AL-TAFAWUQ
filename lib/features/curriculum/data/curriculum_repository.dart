@@ -117,12 +117,18 @@ class CurriculumRepository {
   Future<List<CurriculumRelease>> getPublishedReleases({
     required int gradeId,
     int? trackId,
-  }) {
-    return getReleases(
-      gradeId: gradeId,
-      trackId: trackId,
-      verificationStatus: verified,
+  }) async {
+    final rows = await _database.query(
+      'curriculum_releases',
+      where: trackId == null
+          ? 'grade_id = ? AND track_id IS NULL AND verification_status = ?'
+          : 'grade_id = ? AND (track_id = ? OR track_id IS NULL) AND verification_status = ?',
+      whereArgs: trackId == null
+          ? [gradeId, verified]
+          : [gradeId, trackId, verified],
+      orderBy: 'academic_year DESC, id DESC',
     );
+    return rows.map(CurriculumRelease.fromMap).toList(growable: false);
   }
 
   Future<int> updateReleaseVerification({
