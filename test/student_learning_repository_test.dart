@@ -44,6 +44,27 @@ void main() {
     expect(await database.query('study_progress'), isEmpty);
   });
 
+  test('lesson study sessions inherit their subject for time summaries', () async {
+    await database.update(
+      'content_packages',
+      {'review_status': 'approved'},
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+
+    final startedAt = DateTime.utc(2026, 11, 23, 10);
+    await repository.recordStudySession(
+      lessonId: 1,
+      sessionType: 'lesson',
+      startedAt: startedAt,
+      endedAt: startedAt.add(const Duration(minutes: 12)),
+      completedItems: 1,
+    );
+
+    final summary = await repository.getProgressSummary(gradeId: 3);
+    expect(summary['study_seconds'], 720);
+  });
+
   test('approved lessons accept local progress and report completion', () async {
     await database.update(
       'content_packages',
