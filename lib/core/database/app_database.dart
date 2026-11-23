@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const databaseName = 'al_tafawuq.db';
-  static const databaseVersion = 4;
+  static const databaseVersion = 5;
 
   Database? _instance;
   Future<Database>? _opening;
@@ -251,6 +251,7 @@ class AppDatabase {
     await _migrateToV2(db);
     await _migrateToV3(db);
     await _migrateToV4(db);
+    await _migrateToV5(db);
   }
 
   Future<void> _migrateToV2(Database db) async {
@@ -419,6 +420,36 @@ class AppDatabase {
     );
   }
 
+
+  Future<void> _migrateToV5(Database db) async {
+    // Offline study activity is device-local and does not require an account.
+    await db.execute('''
+      CREATE TABLE study_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        subject_id INTEGER,
+        lesson_id INTEGER,
+        session_type TEXT NOT NULL
+          CHECK (session_type IN ('lesson', 'exam', 'revision', 'flashcards')),
+        started_at TEXT NOT NULL,
+        ended_at TEXT,
+        duration_seconds INTEGER NOT NULL DEFAULT 0
+          CHECK (duration_seconds >= 0),
+        completed_items INTEGER NOT NULL DEFAULT 0
+          CHECK (completed_items >= 0),
+        FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL,
+        FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE SET NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_study_sessions_started '
+      'ON study_sessions(started_at DESC)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_study_sessions_subject '
+      'ON study_sessions(subject_id, started_at DESC)',
+    );
+  }
+
   Future<void> _upgradeSchema(
     Database db,
     int oldVersion,
@@ -432,6 +463,9 @@ class AppDatabase {
     }
     if (oldVersion < 4) {
       await _migrateToV4(db);
+    }
+    if (oldVersion < 5) {
+      await _migrateToV5(db);
     }
   }
 
