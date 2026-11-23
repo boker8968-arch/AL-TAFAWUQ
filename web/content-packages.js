@@ -51,7 +51,7 @@ function validateManifest(m) {
       if (questions.has(q.code)) fail('رمز سؤال مكرر: ' + q.code); questions.add(q.code);
       if (!['multiple_choice','true_false','short_answer'].includes(q.type)) fail('نوع سؤال غير مدعوم: ' + q.type);
       if (q.type === 'multiple_choice' && (!Array.isArray(q.options) || q.options.length < 2)) fail('سؤال الاختيار المتعدد يحتاج خيارين على الأقل.');
-      if (q.marks != null && (typeof q.marks !== 'number' || q.marks <= 0)) fail('درجة السؤال غير صالحة.');
+      if (q.lesson_code != null && !lessons.has(q.lesson_code)) fail('السؤال يشير إلى درس غير موجود: ' + q.lesson_code);\n      if (q.marks != null && (typeof q.marks !== 'number' || q.marks <= 0)) fail('درجة السؤال غير صالحة.');
     }
   }
   return assets;
@@ -119,6 +119,29 @@ export async function importContentPackage(fileList) {
   packageRequest.onsuccess = () => {
     const packageId = packageRequest.result;
     const lessonIds = new Map();
+    let remainingLessons = manifest.units.reduce((n,unit) => n + unit.lessons.length, 0);
+    const addExams = () => {
+      for (const exam of (manifest.exams || [])) {
+        const examReq = tx.objectStore('exams').add({
+          subject_id:subject.id,package_id:packageId,content_code:exam.code,title_ar:exam.title,
+          exam_type:exam.exam_type || 'practice',duration_minutes:exam.duration_minutes || null,source_label:'supplemental'
+        });
+        examReq.onsuccess = () => {
+          exam.questions.forEach((q,index) => {
+            const questionReq = tx.objectStore('questions').add({
+              subject_id:subject.id,lesson_id:q.lesson_code ? lessonIds.get(q.lesson_code) : null,
+              package_id:packageId,content_code:q.code,question_type:q.type,prompt_ar:q.prompt,
+              options_json:q.options==null?null:JSON.stringify(q.options),
+              answer_json:q.answer==null?null:JSON.stringify(q.answer),explanation_ar:q.explanation||null,
+              difficulty:q.difficulty||1,source_label:'supplemental',answer_key_verified:0
+            });
+            questionReq.onsuccess = () => tx.objectStore('exam_questions').add({
+              exam_id:examReq.result,question_id:questionReq.result,sort_order:index,marks:q.marks||1
+            });
+          });
+        };
+      }
+    };
     for (const unit of manifest.units) {
       const unitReq = tx.objectStore('curriculum_units').add({
         subject_id:subject.id,release_subject_id:mapping.id,package_id:packageId,
@@ -131,27 +154,12 @@ export async function importContentPackage(fileList) {
             summary_ar:lesson.summary || null,body_path:lesson.body_file || null,
             sort_order:lesson.sort_order || 0,content_version:manifest.version
           });
-          lessonReq.onsuccess = () => lessonIds.set(lesson.code,lessonReq.result);
-        };
-      };
-    }
-    for (const exam of (manifest.exams || [])) {
-      const examReq = tx.objectStore('exams').add({
-        subject_id:subject.id,package_id:packageId,content_code:exam.code,title_ar:exam.title,
-        exam_type:exam.exam_type || 'practice',duration_minutes:exam.duration_minutes || null,source_label:'supplemental'
-      });
-      examReq.onsuccess = () => {
-        exam.questions.forEach((q,index) => {
-          const questionReq = tx.objectStore('questions').add({
-            subject_id:subject.id,lesson_id:null,package_id:packageId,content_code:q.code,
-            question_type:q.type,prompt_ar:q.prompt,options_json:q.options==null?null:JSON.stringify(q.options),
-            answer_json:q.answer==null?null:JSON.stringify(q.answer),explanation_ar:q.explanation||null,
-            difficulty:q.difficulty||1,source_label:'supplemental',answer_key_verified:0
-          });
-          questionReq.onsuccess = () => tx.objectStore('exam_questions').add({
-            exam_id:examReq.result,question_id:questionReq.result,sort_order:index,marks:q.marks||1
-          });
-        });
+          lessonReq.onsuccess = () => {
+            lessonIds.set(lesson.code,lessonReq.result);
+            remainingLessons--;
+            if (remainingLessons === 0) addExams();
+          };
+        }
       };
     }
     for (const item of verifiedFiles) tx.objectStore('package_assets').add({
