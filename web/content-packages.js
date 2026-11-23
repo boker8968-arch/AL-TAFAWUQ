@@ -105,6 +105,7 @@ export async function importContentPackage(fileList) {
   if (matches.length !== 1) fail(matches.length ? 'الحزمة تطابق أكثر من ربط منهجي؛ يجب حل التعارض أولاً.' : 'لا يوجد إصدار منهج وربط مادة موثّقان يطابقان هذه الحزمة.');
   if (packages.some(p => p.package_code === manifest.package_code)) fail('هذه الحزمة مثبتة مسبقاً. تحديث الحزم غير متاح بعد.');
   const mapping = matches[0];
+  const manifestChecksum = await digest(manifestFile);
   const db = await openDb();
   const names = ['content_packages','curriculum_units','lessons','exams','questions','exam_questions','package_assets'];
   const tx = db.transaction(names,'readwrite');
@@ -112,7 +113,7 @@ export async function importContentPackage(fileList) {
   const packageRequest = packageStore.add({
     package_code:manifest.package_code,version:manifest.version,title:manifest.title,
     imported_at:new Date().toISOString(),source_label:'supplemental',review_status:'pending_review',
-    checksum:await digest(manifestFile),grade_code:manifest.grade_code,subject_code:manifest.subject_code
+    checksum:manifestChecksum,grade_code:manifest.grade_code,subject_code:manifest.subject_code
   });
   const done = new Promise((resolve,reject)=>{tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('أُلغيت عملية الاستيراد.'));});
   packageRequest.onsuccess = () => {
