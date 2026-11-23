@@ -38,13 +38,13 @@ jobs:
       - name: Test
         run: flutter test
 
-      - name: Build debug APK
-        run: flutter build apk --debug
+      - name: Build Android ARM64 debug APK
+        run: flutter build apk --debug --target-platform android-arm64
 
-      - name: Upload debug APK
+      - name: Upload Android ARM64 debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: al-tafawuq-debug-apk
+          name: al-tafawuq-android-arm64-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 7
