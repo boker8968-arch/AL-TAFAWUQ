@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const databaseName = 'al_tafawuq.db';
-  static const databaseVersion = 3;
+  static const databaseVersion = 4;
 
   Database? _instance;
   Future<Database>? _opening;
@@ -250,6 +250,7 @@ class AppDatabase {
     await batch.commit(noResult: true);
     await _migrateToV2(db);
     await _migrateToV3(db);
+    await _migrateToV4(db);
   }
 
   Future<void> _migrateToV2(Database db) async {
@@ -379,6 +380,45 @@ class AppDatabase {
     );
   }
 
+
+  Future<void> _migrateToV4(Database db) async {
+    // Imported packages remain private to the editorial workflow until a
+    // review decision is recorded. Existing package rows are staged as pending.
+    await db.execute('''
+      ALTER TABLE content_packages
+      ADD COLUMN source_label TEXT NOT NULL DEFAULT 'supplemental'
+    ''');
+    await db.execute('''
+      ALTER TABLE content_packages
+      ADD COLUMN review_status TEXT NOT NULL DEFAULT 'pending_review'
+        CHECK (review_status IN ('pending_review', 'approved', 'rejected'))
+    ''');
+    await db.execute('ALTER TABLE content_packages ADD COLUMN reviewed_at TEXT');
+    await db.execute('ALTER TABLE content_packages ADD COLUMN reviewer_label TEXT');
+    await db.execute('ALTER TABLE content_packages ADD COLUMN review_notes TEXT');
+
+    await db.execute('''
+      CREATE TABLE content_package_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        package_id INTEGER NOT NULL,
+        decision TEXT NOT NULL
+          CHECK (decision IN ('approved', 'rejected')),
+        reviewer_label TEXT NOT NULL,
+        notes TEXT,
+        reviewed_at TEXT NOT NULL,
+        FOREIGN KEY (package_id) REFERENCES content_packages(id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_content_packages_review_status '
+      'ON content_packages(review_status, imported_at DESC)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_content_package_reviews_package '
+      'ON content_package_reviews(package_id, reviewed_at DESC)',
+    );
+  }
+
   Future<void> _upgradeSchema(
     Database db,
     int oldVersion,
@@ -389,6 +429,9 @@ class AppDatabase {
     }
     if (oldVersion < 3) {
       await _migrateToV3(db);
+    }
+    if (oldVersion < 4) {
+      await _migrateToV4(db);
     }
   }
 
