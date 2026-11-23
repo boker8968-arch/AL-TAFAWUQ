@@ -135,7 +135,7 @@ class _ExamAttemptPageState extends State<ExamAttemptPage> {
   final Map<int, Object> _answers = {};
   bool _submitting = false;
 
-  Future<void> _submit(int count) async {
+  Future<void> _submit() async {
     setState(() => _submitting = true);
     try {
       final result = await widget.repository.submitAttempt(widget.attemptId);
@@ -189,7 +189,7 @@ class _ExamAttemptPageState extends State<ExamAttemptPage> {
                 ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: _submitting ? null : () => _submit(questions.length),
+                onPressed: _submitting ? null : _submit,
                 child: Text(_submitting ? 'جارٍ التسليم...' : 'تسليم الامتحان'),
               ),
             ],
@@ -217,7 +217,14 @@ class _QuestionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final raw = question['options_json'] as String?;
     final decoded = raw == null ? null : jsonDecode(raw);
-    final options = decoded is List ? decoded : const [];
+    final options = decoded is List
+        ? decoded
+        : question['question_type'] == 'true_false'
+            ? const [
+                {'value': true, 'label': 'صح'},
+                {'value': false, 'label': 'خطأ'},
+              ]
+            : const [];
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
