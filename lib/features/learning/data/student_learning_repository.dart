@@ -25,6 +25,9 @@ class StudentLearningRepository {
     if (trackId != null) {
       where.add('(s.track_id IS NULL OR s.track_id = ?)');
       args.add(trackId);
+    } else {
+      // Until a student selects a track, expose common subjects only.
+      where.add('s.track_id IS NULL');
     }
     if (subjectId != null) {
       where.add('s.id = ?');
@@ -170,7 +173,7 @@ class StudentLearningRepository {
     int? trackId,
   }) async {
     final args = <Object?>[gradeId];
-    var trackClause = '';
+    var trackClause = ' AND s.track_id IS NULL';
     if (trackId != null) {
       trackClause = ' AND (s.track_id IS NULL OR s.track_id = ?)';
       args.add(trackId);
