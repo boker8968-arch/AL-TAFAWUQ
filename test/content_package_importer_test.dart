@@ -86,7 +86,8 @@ void main() {
     expect(exams.single['package_id'], 1);
     expect(questions, hasLength(1));
     expect(questions.single['lesson_id'], 1);
-    expect(questions.single['answer_key_verified'], 1);
+    // A manifest cannot self-certify its answer key, even when it sets true.
+    expect(questions.single['answer_key_verified'], 0);
     expect(links.single['marks'], 2);
   });
 
