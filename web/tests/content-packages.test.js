@@ -33,3 +33,24 @@ test('rejects unsupported question types',()=>{
   const manifest=good();manifest.exams=[{code:'exam-1',title:'امتحان',questions:[{code:'q-1',type:'essay',prompt:'سؤال'}]}];
   assert.throws(()=>validateManifest(manifest),/نوع سؤال غير مدعوم/);
 });
+
+test('rejects a note whose file is not declared as an asset',()=>{
+  const manifest=good();manifest.notes=[{code:'note-1',title:'مذكرة',file:'notes/one.txt'}];
+  assert.throws(()=>validateManifest(manifest),/غير مدرج ضمن assets/);
+});
+test('rejects malformed MIME types',()=>{
+  const manifest=good();manifest.assets[0].media_type='not-a-mime';
+  assert.throws(()=>validateManifest(manifest),/نوع الملف غير صالح/);
+});
+test('rejects negative or non-integer exam durations',()=>{
+  const manifest=good();manifest.exams=[{code:'exam-1',title:'امتحان',duration_minutes:-5,questions:[{code:'q-1',type:'short_answer',prompt:'سؤال'}]}];
+  assert.throws(()=>validateManifest(manifest),/مدة الامتحان غير صالحة/);
+});
+test('rejects non-boolean answer key verification flags',()=>{
+  const manifest=good();manifest.exams=[{code:'exam-1',title:'امتحان',questions:[{code:'q-1',type:'short_answer',prompt:'سؤال',answer_key_verified:'true'}]}];
+  assert.throws(()=>validateManifest(manifest),/قيمة منطقية/);
+});
+test('rejects duplicate package asset paths',()=>{
+  const manifest=good();manifest.assets.push({...manifest.assets[0]});
+  assert.throws(()=>validateManifest(manifest),/مسار ملف مكرر/);
+});
