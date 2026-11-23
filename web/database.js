@@ -51,6 +51,10 @@ export async function getActiveExamAttempts({gradeId,trackId=null}={}){
  const byId=new Map(visible.map(e=>[e.id,e]));
  return (await getAll('exam_attempts')).filter(a=>!a.completed_at&&byId.has(a.exam_id)).map(a=>({...a,exam:byId.get(a.exam_id)})).sort((a,b)=>b.started_at.localeCompare(a.started_at));
 }
+export function projectStudentExamQuestion(question,link,packageId){
+ if(!question||question.package_id!==packageId)return null;
+ return {id:question.id,question_type:question.question_type,prompt_ar:question.prompt_ar,options_json:question.options_json,marks:link.marks,difficulty:question.difficulty};
+}
 export async function getAttemptQuestions(attemptId){
   const attempt=await getRecord('exam_attempts',Number(attemptId));
   if(!attempt||attempt.completed_at)throw new Error('المحاولة غير متاحة أو تم تسليمها.');
@@ -58,7 +62,7 @@ export async function getAttemptQuestions(attemptId){
   const exam=exams.find(x=>x.id===attempt.exam_id),pkg=exam&&packages.find(x=>x.id===exam.package_id);
   if(!exam||pkg?.review_status!=='approved')throw new Error('الامتحان غير معتمد.');
   const ids=links.filter(x=>x.exam_id===exam.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-  return ids.map(link=>{const q=questions.find(x=>x.id===link.question_id);return q&&q.package_id===exam.package_id?{...q,marks:link.marks}:null;}).filter(Boolean);
+  return ids.map(link=>projectStudentExamQuestion(questions.find(x=>x.id===link.question_id),link,exam.package_id)).filter(Boolean);
 }
 export async function saveAttemptAnswer(attemptId,questionId,answer){
   const attempt=await getRecord('exam_attempts',Number(attemptId));
