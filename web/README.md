@@ -1,11 +1,38 @@
-# منصة التفوق — Web/Capacitor migration
-This isolated branch starts the HTML/CSS/JavaScript Android migration. The existing Flutter application on main is preserved.
-## Current scope
-- RTL Arabic student shell and responsive mobile layout.
-- Local student profile persistence with IndexedDB.
-- PWA app-shell caching for offline launch.
-- Capacitor Android project configuration.
-## Not yet ported
-The complete Flutter SQLite schema, content-package importer/review workflow, curriculum queries, lesson reader, exam engine, attempt scoring, bookmarks and study history still require migration and parity tests. No unverified subjects, lessons, notes or exams are seeded. The current UI is a migration scaffold, not a feature-complete student release.
-## Build
-From this directory: npm install, npm run build, npx cap add android, npx cap sync android. Android debug APK is built with Gradle from the generated android project.
+# منصة التفوق — Web / Capacitor
+
+هذا المسار المعزول هو نسخة الويب القابلة للتغليف كتطبيق Android عبر Capacitor. فرع Flutter الأصلي `main` لم يتم تعديله.
+
+## ما تم ترحيله
+
+- واجهة عربية RTL متجاوبة بهوية الأخضر الزمردي والأبيض والذهبي.
+- ملف الطالب والصف والمسار محفوظة محلياً عبر IndexedDB.
+- قاعدة بيانات محلية تشمل المنهج، الوحدات، الدروس، الامتحانات، المحاولات، الإجابات، التقدم، جلسات الدراسة، المذكرات، الحزم ومراجعاتها.
+- بوابة نشر لا تعرض للطالب إلا محتوى الحزم المعتمدة المرتبطة بإصدار منهج ومادة موثّقين.
+- قارئ محلي لنصوص UTF-8 للدروس والمذكرات. يعرض المحتوى كنص آمن ولا ينفذ HTML.
+- محرك محاولات الامتحان وسجل المحاولات. التصحيح الآلي لا يعمل إلا لمفاتيح إجابة موثّقة ومفعّلة من إجراء تحريري موثوق.
+- مستورد حزم تكميلية يتحقق من manifest v1، وربط المنهج الموثق، وأحجام الملفات وبصمات SHA-256، ثم يخزن الأصول محلياً. كل حزمة تبدأ بحالة `pending_review`.
+- يدعم manifest اختيارياً مصفوفة `notes` لملفات المذكرات؛ وتُصنف تلقائياً تحت الفئة `المذكرات`.
+- PWA caching وملفات الويب المضمنة في بناء Capacitor للعمل دون إنترنت.
+
+## ضوابط النشر والأمان
+
+- الحزم `official` مرفوضة في المستورد الحالي؛ الاستيراد متاح للحزم `supplemental` فقط.
+- ملف الحزمة لا يستطيع اعتماد نفسه أو توثيق مفتاح الإجابة. مفاتيح الإجابة المستوردة تحفظ غير موثقة.
+- لا تظهر الحزمة أو دروسها أو مذكراتها أو امتحاناتها للطلاب قبل اعتمادها وربطها بمنهج موثّق.
+- واجهة المراجعة الإدارية ذات صلاحيات موثوقة لم تكتمل بعد؛ لذلك لا يوجد حالياً زر اعتماد مكشوف داخل تطبيق الطالب.
+- قارئ الملفات الحالي نصي؛ PDF والصور والصوت والفيديو لم تُرحّل بعد.
+- لا توجد مواد أو امتحانات تجريبية معروضة باعتبارها محتوى رسمياً.
+
+## الفحص والبناء
+
+```bash
+npm install
+npm test
+npm run build
+npx cap add android
+npx cap sync android
+cd android
+./gradlew assembleDebug
+```
+
+يُنفذ GitHub Actions فحص JavaScript واختبارات التحقق من الحزم وبناء APK تجريبي. يجب إكمال اختبار الواجهات على أحجام الهواتف، واختبار التثبيت والتشغيل على جهاز Android فعلي قبل اعتبار الإصدار جاهزاً.
