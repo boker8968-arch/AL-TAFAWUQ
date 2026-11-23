@@ -2,9 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../student/presentation/student_setup_page.dart';
+import '../../content/presentation/content_management_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
+
+  void _openContentManagement(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ContentManagementPage()),
+    );
+  }
 
   Future<void> _openStudentSetup(BuildContext context) async {
     await Navigator.of(context).push(
@@ -32,6 +39,11 @@ class HomePage extends StatelessWidget {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'إدارة المحتوى للمشرفين',
+            onPressed: () => _openContentManagement(context),
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+          ),
           IconButton(
             tooltip: 'الإشعارات',
             onPressed: () {},
