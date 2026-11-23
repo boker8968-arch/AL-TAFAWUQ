@@ -23,7 +23,8 @@ function validateManifest(m) {
   if (!SAFE_SEGMENT.test(m.package_code) || !SAFE_SEGMENT.test(m.version)) fail('رمز الحزمة أو الإصدار غير صالح للتخزين.');
   if (m.source_label !== 'supplemental') fail('يُسمح حالياً باستيراد الحزم التكميلية فقط.');
   if (!Array.isArray(m.units) || !m.units.length || !Array.isArray(m.assets)) fail('يجب أن تحتوي الحزمة على وحدات ومصفوفة ملفات.');
-  if (m.exams != null && !Array.isArray(m.exams)) fail('مصفوفة الامتحانات غير صالحة.');\n  if (m.notes != null && !Array.isArray(m.notes)) fail('مصفوفة المذكرات غير صالحة.');
+  if (m.exams != null && !Array.isArray(m.exams)) fail('مصفوفة الامتحانات غير صالحة.');
+  if (m.notes != null && !Array.isArray(m.notes)) fail('مصفوفة المذكرات غير صالحة.');
   const units = new Set(), lessons = new Set(), exams = new Set(), questions = new Set(), noteCodes = new Set(), assets = new Map(), refs = [];
   for (const unit of m.units) {
     requiredString(unit.code,'unit.code'); requiredString(unit.title,'unit.title');
@@ -35,7 +36,12 @@ function validateManifest(m) {
       if (lesson.body_file) refs.push(safePath(lesson.body_file,'body_file'));
     }
   }
-  for (const note of (m.notes || [])) {\n    requiredString(note.code,'note.code'); requiredString(note.title,'note.title');\n    if (noteCodes.has(note.code)) fail('رمز مذكرة مكرر: ' + note.code); noteCodes.add(note.code);\n    refs.push(safePath(note.file,'note.file'));\n  }\n  for (const asset of m.assets) {
+  for (const note of (m.notes || [])) {
+    requiredString(note.code,'note.code'); requiredString(note.title,'note.title');
+    if (noteCodes.has(note.code)) fail('رمز مذكرة مكرر: ' + note.code); noteCodes.add(note.code);
+    refs.push(safePath(note.file,'note.file'));
+  }
+  for (const asset of m.assets) {
     const path = safePath(asset.path,'asset.path');
     if (path === 'manifest.json' || assets.has(path)) fail('مسار ملف مكرر أو محجوز: ' + path);
     if (!Number.isSafeInteger(asset.bytes) || asset.bytes < 0 || !SHA256.test(asset.sha256 || '')) fail('بيانات حجم أو بصمة الملف غير صالحة: ' + path);
@@ -51,7 +57,8 @@ function validateManifest(m) {
       if (questions.has(q.code)) fail('رمز سؤال مكرر: ' + q.code); questions.add(q.code);
       if (!['multiple_choice','true_false','short_answer'].includes(q.type)) fail('نوع سؤال غير مدعوم: ' + q.type);
       if (q.type === 'multiple_choice' && (!Array.isArray(q.options) || q.options.length < 2)) fail('سؤال الاختيار المتعدد يحتاج خيارين على الأقل.');
-      if (q.lesson_code != null && !lessons.has(q.lesson_code)) fail('السؤال يشير إلى درس غير موجود: ' + q.lesson_code);\n      if (q.marks != null && (typeof q.marks !== 'number' || q.marks <= 0)) fail('درجة السؤال غير صالحة.');
+      if (q.lesson_code != null && !lessons.has(q.lesson_code)) fail('السؤال يشير إلى درس غير موجود: ' + q.lesson_code);
+      if (q.marks != null && (typeof q.marks !== 'number' || q.marks <= 0)) fail('درجة السؤال غير صالحة.');
     }
   }
   return assets;
@@ -162,7 +169,11 @@ export async function importContentPackage(fileList) {
         }
       };
     }
-    for (const note of (manifest.notes || [])) tx.objectStore('study_notes').add({\n      subject_id:subject.id,package_id:packageId,content_code:note.code,title_ar:note.title,\n      summary_ar:note.summary||null,body_path:safePath(note.file,'note.file'),category:'المذكرات'\n    });\n    for (const item of verifiedFiles) tx.objectStore('package_assets').add({
+    for (const note of (manifest.notes || [])) tx.objectStore('study_notes').add({
+      subject_id:subject.id,package_id:packageId,content_code:note.code,title_ar:note.title,
+      summary_ar:note.summary||null,body_path:safePath(note.file,'note.file'),category:'المذكرات'
+    });
+    for (const item of verifiedFiles) tx.objectStore('package_assets').add({
       package_id:packageId,path:item.path,blob:item.file,media_type:item.media_type
     });
   };
