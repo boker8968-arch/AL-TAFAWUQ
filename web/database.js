@@ -44,6 +44,13 @@ export async function startExamAttempt(examId,{gradeId,trackId=null}={}){
   if(!exam)throw new Error('هذا الامتحان غير منشور لهذا الصف.');
   return addRecord('exam_attempts',{exam_id:exam.id,started_at:new Date().toISOString(),completed_at:null,score:null,total_marks:null,expires_at:exam.duration_minutes?new Date(Date.now()+Number(exam.duration_minutes)*60000).toISOString():null});
 }
+export async function getExamAttempt(attemptId){return getRecord('exam_attempts',Number(attemptId));}
+export async function getAttemptAnswers(attemptId){return (await getAll('attempt_answers')).filter(x=>x.attempt_id===Number(attemptId));}
+export async function getActiveExamAttempts({gradeId,trackId=null}={}){
+ const visible=await getPublishedExams({gradeId,trackId});
+ const byId=new Map(visible.map(e=>[e.id,e]));
+ return (await getAll('exam_attempts')).filter(a=>!a.completed_at&&byId.has(a.exam_id)).map(a=>({...a,exam:byId.get(a.exam_id)})).sort((a,b)=>b.started_at.localeCompare(a.started_at));
+}
 export async function getAttemptQuestions(attemptId){
   const attempt=await getRecord('exam_attempts',Number(attemptId));
   if(!attempt||attempt.completed_at)throw new Error('المحاولة غير متاحة أو تم تسليمها.');
