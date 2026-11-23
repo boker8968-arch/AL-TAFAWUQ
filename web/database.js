@@ -98,10 +98,10 @@ export async function submitExamAttempt(attemptId){
   return {attempt_id:Number(attemptId),score,total_marks:total,graded_questions:graded,total_questions:questions.length};
 }
 export async function recordLessonStudySession(lessonId,startedAt,endedAt=new Date()){
- const [lessons,units,packages,mappings,releases]=await Promise.all(['lessons','curriculum_units','content_packages','curriculum_release_subjects','curriculum_releases'].map(getAll));
+ const [lessons,units,packages,mappings,releases,subjects]=await Promise.all(['lessons','curriculum_units','content_packages','curriculum_release_subjects','curriculum_releases','subjects'].map(getAll));
  const lesson=lessons.find(x=>x.id===Number(lessonId)),unit=lesson&&units.find(x=>x.id===lesson.unit_id);
- const pkg=unit&&packages.find(x=>x.id===unit.package_id),mapping=unit&&mappings.find(x=>x.id===unit.release_subject_id),release=mapping&&releases.find(x=>x.id===mapping.release_id);
- if(!lesson||pkg?.review_status!=='approved'||mapping?.verification_status!=='verified'||release?.verification_status!=='verified')throw new Error('لا يمكن تسجيل جلسة لدرس غير منشور.');
+ const pkg=unit&&packages.find(x=>x.id===unit.package_id),mapping=unit&&mappings.find(x=>x.id===unit.release_subject_id),release=mapping&&releases.find(x=>x.id===mapping.release_id),subject=unit&&subjects.find(x=>x.id===unit.subject_id);
+ if(!lesson||!subject||mapping?.subject_id!==subject.id||pkg?.review_status!=='approved'||mapping?.verification_status!=='verified'||release?.verification_status!=='verified'||release.grade_id!==subject.grade_id)throw new Error('لا يمكن تسجيل جلسة لدرس غير منشور.');
  const start=new Date(startedAt),end=new Date(endedAt);
  const seconds=Math.max(0,Math.floor((end-start)/1000));
  return addRecord('study_sessions',{subject_id:unit.subject_id,session_type:'lesson',started_at:start.toISOString(),ended_at:end.toISOString(),duration_seconds:seconds,completed_items:1});
