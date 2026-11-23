@@ -9,18 +9,23 @@ class StudentExamRepository {
 
   final Database _db;
 
-  static const _published = """
-    cp.review_status = 'approved'
-    AND r.verification_status = 'verified'
-    AND rs.verification_status = 'verified'
-  """;
-
   Future<List<Map<String, Object?>>> getPublishedExams({
     required int gradeId,
     int? trackId,
     int? subjectId,
   }) async {
-    final clauses = <String>[_published, 's.grade_id = ?'];
+    final clauses = <String>[
+      "cp.review_status = 'approved'",
+      's.grade_id = ?',
+      '''EXISTS (
+        SELECT 1 FROM curriculum_units u
+        JOIN curriculum_release_subjects rs ON rs.id = u.release_subject_id
+        JOIN curriculum_releases r ON r.id = rs.release_id
+        WHERE u.package_id = cp.id AND rs.subject_id = s.id
+          AND rs.verification_status = 'verified'
+          AND r.verification_status = 'verified'
+      )''',
+    ];
     final args = <Object?>[gradeId];
     if (trackId == null) {
       clauses.add('s.track_id IS NULL');
@@ -40,11 +45,6 @@ class StudentExamRepository {
       FROM exams e
       JOIN subjects s ON s.id = e.subject_id
       JOIN content_packages cp ON cp.id = e.package_id
-      JOIN curriculum_release_subjects rs ON rs.id = (
-        SELECT u.release_subject_id FROM curriculum_units u
-        WHERE u.package_id = cp.id LIMIT 1
-      )
-      JOIN curriculum_releases r ON r.id = rs.release_id
       LEFT JOIN exam_questions eq ON eq.exam_id = e.id
       WHERE ${clauses.join(' AND ')}
       GROUP BY e.id
@@ -58,9 +58,13 @@ class StudentExamRepository {
       SELECT e.id FROM exams e
       JOIN content_packages cp ON cp.id = e.package_id
       JOIN subjects s ON s.id = e.subject_id
-      JOIN curriculum_release_subjects rs ON rs.subject_id = s.id
+      JOIN curriculum_units u ON u.package_id = cp.id
+      JOIN curriculum_release_subjects rs ON rs.id = u.release_subject_id
       JOIN curriculum_releases r ON r.id = rs.release_id
-      WHERE e.id = ? AND $_published
+      WHERE e.id = ? AND cp.review_status = 'approved'
+        AND rs.subject_id = s.id
+        AND rs.verification_status = 'verified'
+        AND r.verification_status = 'verified'
       LIMIT 1
     ''', [examId]);
     if (visible.isEmpty) throw StateError('This exam is not published.');
@@ -86,7 +90,9 @@ class StudentExamRepository {
       JOIN exam_questions eq ON eq.exam_id = a.exam_id
       JOIN questions q ON q.id = eq.question_id
       JOIN content_packages cp ON cp.id = q.package_id
+      JOIN exams e ON e.id = a.exam_id
       WHERE a.id = ? AND cp.review_status = 'approved'
+        AND q.package_id = e.package_id
       ORDER BY eq.sort_order, q.id
     ''', [attemptId]);
   }
@@ -104,6 +110,7 @@ class StudentExamRepository {
       JOIN content_packages cp ON cp.id = e.package_id
       WHERE a.id = ? AND q.id = ? AND a.completed_at IS NULL
         AND cp.review_status = 'approved'
+        AND q.package_id = e.package_id
     ''', [attemptId, questionId]);
     if (allowed.isEmpty) throw StateError('Question is not part of this active exam.');
     await _db.insert('attempt_answers', {
