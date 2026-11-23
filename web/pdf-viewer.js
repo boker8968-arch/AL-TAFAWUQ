@@ -51,7 +51,6 @@ export async function renderPdfAsset(blob, container) {
     canvas.width = Math.floor(viewport.width * ratio);
     canvas.height = Math.floor(viewport.height * ratio);
     canvas.style.width = Math.floor(viewport.width) + 'px';
-    canvas.style.height = Math.floor(viewport.height) + 'px';
     const context = canvas.getContext('2d', { alpha: false });
     pageHost.append(canvas);
     status.textContent = 'صفحة ' + pageNumber + ' من ' + pdf.numPages;
