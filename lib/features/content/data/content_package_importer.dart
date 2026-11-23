@@ -154,6 +154,8 @@ class ContentPackageImporter {
           'manifest_path': manifestPath,
           'imported_at': now,
           'checksum': manifestChecksum,
+          'source_label': manifest.sourceLabel,
+          'review_status': 'pending_review',
         });
 
         for (final unit in manifest.units) {
