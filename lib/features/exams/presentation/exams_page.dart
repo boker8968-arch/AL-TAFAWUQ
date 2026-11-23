@@ -83,8 +83,95 @@ class _ExamsPageState extends State<ExamsPage> {
                     '${exam['subject_name']} • ${exam['question_count']} سؤال'
                     '${exam['duration_minutes'] == null ? '' : ' • ${exam['duration_minutes']} دقيقة'}',
                   ),
-                  trailing: const Icon(Icons.chevron_left_rounded),
+                  trailing: IconButton(
+                    tooltip: 'سجل المحاولات',
+                    icon: const Icon(Icons.history_rounded),
+                    onPressed: () async {
+                      final db = await AppDatabase.instance.database;
+                      if (!context.mounted) return;
+                      await Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => ExamHistoryPage(
+                          repository: StudentExamRepository(db),
+                          examId: exam['id'] as int,
+                          title: exam['title_ar'] as String,
+                        ),
+                      ));
+                    },
+                  ),
                   onTap: () => _start(exam),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ExamHistoryPage extends StatelessWidget {
+  const ExamHistoryPage({
+    super.key,
+    required this.repository,
+    required this.examId,
+    required this.title,
+  });
+
+  final StudentExamRepository repository;
+  final int examId;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('سجل: $title')),
+      body: FutureBuilder<List<Map<String, Object?>>>(
+        future: repository.getAttemptHistory(examId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return const Center(child: Text('تعذر تحميل سجل المحاولات.'));
+          }
+          final attempts = snapshot.data ?? const [];
+          if (attempts.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'لا توجد محاولات مكتملة لهذا الامتحان حتى الآن.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: attempts.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final attempt = attempts[index];
+              final completedAt = DateTime.parse(
+                attempt['completed_at'] as String,
+              ).toLocal();
+              final score = (attempt['score'] as num?)?.toDouble() ?? 0;
+              final total = (attempt['total_marks'] as num?)?.toDouble() ?? 0;
+              final dateLabel =
+                  '${completedAt.year}/${completedAt.month.toString().padLeft(2, '0')}/${completedAt.day.toString().padLeft(2, '0')}'
+                  ' • ${completedAt.hour.toString().padLeft(2, '0')}:${completedAt.minute.toString().padLeft(2, '0')}';
+              return Card(
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.assignment_turned_in_outlined),
+                  ),
+                  title: Text(
+                    total > 0
+                        ? '$score / $total درجة'
+                        : 'لم تُصحح أسئلة هذه المحاولة آلياً',
+                  ),
+                  subtitle: Text(dateLabel),
+                  trailing: Text('محاولة ${attempts.length - index}'),
                 ),
               );
             },
