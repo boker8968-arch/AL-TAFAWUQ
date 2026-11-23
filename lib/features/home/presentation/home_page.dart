@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../student/presentation/student_setup_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
+
+  Future<void> _openStudentSetup(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<bool>(
+        builder: (_) => const StudentSetupPage(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +44,7 @@ class HomePage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            const _WelcomeCard(),
+            _WelcomeCard(onSetupTap: () => _openStudentSetup(context)),
             const SizedBox(height: 24),
             const _SectionHeading(title: 'ماذا تريد أن تدرس اليوم؟'),
             const SizedBox(height: 12),
@@ -78,7 +87,9 @@ class HomePage extends StatelessWidget {
 }
 
 class _WelcomeCard extends StatelessWidget {
-  const _WelcomeCard();
+  const _WelcomeCard({required this.onSetupTap});
+
+  final VoidCallback onSetupTap;
 
   @override
   Widget build(BuildContext context) {
@@ -92,12 +103,12 @@ class _WelcomeCard extends StatelessWidget {
           colors: [AppColors.emerald, AppColors.deepEmerald],
         ),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.auto_awesome_rounded, color: AppColors.gold, size: 28),
-          SizedBox(height: 14),
-          Text(
+          const Icon(Icons.auto_awesome_rounded, color: AppColors.gold, size: 28),
+          const SizedBox(height: 14),
+          const Text(
             'ابدأ يومك بالإنجاز',
             style: TextStyle(
               color: Colors.white,
@@ -105,15 +116,25 @@ class _WelcomeCard extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          SizedBox(height: 6),
-          Text(
+          const SizedBox(height: 6),
+          const Text(
             'كل خطوة صغيرة تقرّبك من هدفك.',
             style: TextStyle(color: Color(0xFFE2F1E9), fontSize: 13),
           ),
-          SizedBox(height: 18),
-          Text(
+          const SizedBox(height: 18),
+          const Text(
             'اختر صفك الدراسي لإعداد تجربتك التعليمية',
             style: TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.tonalIcon(
+            onPressed: onSetupTap,
+            icon: const Icon(Icons.school_outlined),
+            label: const Text('إعداد بيانات الطالب'),
+            style: FilledButton.styleFrom(
+              foregroundColor: AppColors.deepEmerald,
+              backgroundColor: Colors.white,
+            ),
           ),
         ],
       ),
