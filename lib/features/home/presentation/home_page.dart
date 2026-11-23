@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../student/presentation/student_setup_page.dart';
 import '../../content/presentation/content_management_page.dart';
+import '../../library/presentation/learning_library_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -10,6 +11,12 @@ class HomePage extends StatelessWidget {
   void _openContentManagement(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const ContentManagementPage()),
+    );
+  }
+
+  void _openLibrary(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const LearningLibraryPage()),
     );
   }
 
@@ -60,7 +67,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 24),
             const _SectionHeading(title: 'ماذا تريد أن تدرس اليوم؟'),
             const SizedBox(height: 12),
-            const _StudyGrid(),
+            _StudyGrid(onOpenLibrary: () => _openLibrary(context)),
             const SizedBox(height: 24),
             const _SectionHeading(title: 'تابع رحلتك التعليمية'),
             const SizedBox(height: 12),
@@ -173,7 +180,9 @@ class _SectionHeading extends StatelessWidget {
 }
 
 class _StudyGrid extends StatelessWidget {
-  const _StudyGrid();
+  const _StudyGrid({required this.onOpenLibrary});
+
+  final VoidCallback onOpenLibrary;
 
   static const _items = [
     (title: 'المناهج', icon: Icons.menu_book_rounded),
@@ -197,7 +206,10 @@ class _StudyGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final item = _items[index];
         return Card(
-          child: Padding(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: item.title == 'الامتحانات' ? null : onOpenLibrary,
+            child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,6 +225,7 @@ class _StudyGrid extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         );
