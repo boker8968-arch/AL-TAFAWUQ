@@ -13,25 +13,43 @@ class ContentPackageImporter {
   ContentPackageImporter({
     required Database database,
     required Directory packagesDirectory,
+    this.allowOfficialSource = false,
   })  : _database = database,
         _packagesDirectory = packagesDirectory;
 
   final Database _database;
   final Directory _packagesDirectory;
 
+  /// Must only be enabled by a trusted editorial workflow after provenance review.
+  final bool allowOfficialSource;
+
   Future<ContentPackageImportResult> importDirectory(
     Directory packageDirectory,
   ) async {
     final sourceRoot = await packageDirectory.resolveSymbolicLinks();
     final manifestFile = File(p.join(sourceRoot, 'manifest.json'));
-    if (!await manifestFile.exists()) {
-      throw const FormatException('Package manifest.json was not found.');
+    if (await FileSystemEntity.type(manifestFile.path, followLinks: false) !=
+        FileSystemEntityType.file) {
+      throw const FormatException(
+        'Package manifest.json is missing or is not a regular file.',
+      );
+    }
+    final resolvedManifest = await manifestFile.resolveSymbolicLinks();
+    if (!p.normalize(resolvedManifest).startsWith(
+      p.normalize(sourceRoot) + p.separator,
+    )) {
+      throw const FormatException('Manifest resolves outside the package directory.');
     }
 
     final manifestBytes = await manifestFile.readAsBytes();
     final manifest = ContentPackageManifest.fromJson(utf8.decode(manifestBytes));
     _validateStorageSegment(manifest.packageCode, 'package_code');
     _validateStorageSegment(manifest.version, 'version');
+    if (manifest.sourceLabel == 'official' && !allowOfficialSource) {
+      throw StateError(
+        'Official-source packages require an explicitly trusted editorial import workflow.',
+      );
+    }
 
     final matches = await _database.rawQuery('''
       SELECT r.id AS release_id, rs.id AS release_subject_id, s.id AS subject_id
@@ -78,6 +96,15 @@ class ContentPackageImporter {
     await _packagesDirectory.create(recursive: true);
     final packagesPath = await _packagesDirectory.resolveSymbolicLinks();
     final packageParent = Directory(p.join(packagesPath, manifest.packageCode));
+    final parentType = await FileSystemEntity.type(
+      packageParent.path,
+      followLinks: false,
+    );
+    if (parentType == FileSystemEntityType.link ||
+        (parentType != FileSystemEntityType.notFound &&
+            parentType != FileSystemEntityType.directory)) {
+      throw FileSystemException('Unsafe package storage directory.', packageParent.path);
+    }
     await packageParent.create(recursive: true);
     final finalDirectory = Directory(p.join(packageParent.path, manifest.version));
     if (await finalDirectory.exists()) {
