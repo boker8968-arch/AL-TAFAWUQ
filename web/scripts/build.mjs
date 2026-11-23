@@ -3,7 +3,7 @@ await rm(new URL('../www', import.meta.url), { recursive: true, force: true });
 await mkdir(new URL('../www', import.meta.url), { recursive: true });
 for (const file of ['index.html','styles.css','app.js','database.js','content-packages.js','content-admin.js','app-config.js','pdf-viewer.js','manifest.webmanifest','sw.js']) await cp(new URL('../'+file, import.meta.url), new URL('../www/'+file, import.meta.url));
 const contentAdminEnabled = process.env.CONTENT_ADMIN_ENABLED === 'true';
-await writeFile(new URL('../www/app-config.js', import.meta.url), 'export const CONTENT_ADMIN_ENABLED = '+contentAdminEnabled+';\\n');
+await writeFile(new URL('../www/app-config.js', import.meta.url), 'export const CONTENT_ADMIN_ENABLED = '+contentAdminEnabled+';');
 console.log('Offline web shell copied to www/. Content admin enabled: '+contentAdminEnabled);
 const pdfVendor = new URL('../www/vendor/pdfjs/', import.meta.url);
 await mkdir(pdfVendor, { recursive: true });
