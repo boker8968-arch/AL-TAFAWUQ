@@ -139,11 +139,13 @@ class StudentLearningRepository {
     if (completedItems < 0) {
       throw ArgumentError.value(completedItems, 'completedItems');
     }
+    var effectiveSubjectId = subjectId;
     if (lessonId != null) {
       final visible = await _database.rawQuery('''
-        SELECT l.id
+        SELECT s.id AS subject_id
         FROM lessons l
         JOIN curriculum_units u ON u.id = l.unit_id
+        JOIN subjects s ON s.id = u.subject_id
         JOIN content_packages cp ON cp.id = u.package_id
         JOIN curriculum_release_subjects rs ON rs.id = u.release_subject_id
         JOIN curriculum_releases r ON r.id = rs.release_id
@@ -156,9 +158,10 @@ class StudentLearningRepository {
       if (visible.isEmpty) {
         throw StateError('Study activity cannot reference an unpublished lesson.');
       }
+      effectiveSubjectId ??= visible.single['subject_id'] as int;
     }
     await _database.insert('study_sessions', {
-      'subject_id': subjectId,
+      'subject_id': effectiveSubjectId,
       'lesson_id': lessonId,
       'session_type': sessionType,
       'started_at': startedAt.toUtc().toIso8601String(),
