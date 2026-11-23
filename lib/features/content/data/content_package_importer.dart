@@ -70,8 +70,8 @@ class ContentPackageImporter {
     );
     if (installed.isNotEmpty) {
       throw StateError(
-        'Package \${manifest.packageCode} is already installed '
-        '(version \${installed.first['version']}). Replacement is not supported yet.',
+        'Package ${manifest.packageCode} is already installed '
+        '(version ${installed.first['version']}). Replacement is not supported yet.',
       );
     }
 
@@ -85,7 +85,7 @@ class ContentPackageImporter {
     }
 
     final stagingDirectory = Directory(
-      p.join(packageParent.path, '.staging-\${DateTime.now().microsecondsSinceEpoch}'),
+      p.join(packageParent.path, '.staging-${DateTime.now().microsecondsSinceEpoch}'),
     );
     await stagingDirectory.create();
     var promoted = false;
@@ -96,12 +96,12 @@ class ContentPackageImporter {
         final actualLength = await sourceFile.length();
         if (actualLength != asset.bytes) {
           throw FormatException(
-            'Asset size mismatch for \${asset.path}: expected \${asset.bytes}, got $actualLength.',
+            'Asset size mismatch for ${asset.path}: expected ${asset.bytes}, got $actualLength.',
           );
         }
         final actualDigest = await sha256.bind(sourceFile.openRead()).first;
         if (actualDigest.toString() != asset.sha256) {
-          throw FormatException('SHA-256 mismatch for \${asset.path}.');
+          throw FormatException('SHA-256 mismatch for ${asset.path}.');
         }
 
         final destination = File(p.join(stagingDirectory.path, asset.path));
