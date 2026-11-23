@@ -12,7 +12,7 @@ const DEFINITIONS={
  questions:{keyPath:'id',indexes:[['subject_id','subject_id'],['package_id','package_id']]},
  exam_questions:{keyPath:['exam_id','question_id'],indexes:[['exam_id','exam_id']]},
  exam_attempts:{keyPath:'id',indexes:[['exam_id','exam_id']]},
- attempt_answers:{keyPath:['attempt_id','question_id'],indexes:[['attempt_id','attempt_id']]},
+ attempt_answers:{keyPath:'id',indexes:[['attempt_id','attempt_id'],['question_pair',['attempt_id','question_id']]]},
  bookmarks:{keyPath:'id',indexes:[['item_type','item_type']]},
  study_progress:{keyPath:'lesson_id'},
  student_profiles:{keyPath:'id'},
