@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const databaseName = 'al_tafawuq.db';
-  static const databaseVersion = 1;
+  static const databaseVersion = 2;
 
   Database? _instance;
   Future<Database>? _opening;
@@ -248,6 +248,105 @@ class AppDatabase {
       'sort_order': 3,
     });
     await batch.commit(noResult: true);
+    await _migrateToV2(db);
+  }
+
+  Future<void> _migrateToV2(Database db) async {
+    await db.execute('''
+      CREATE TABLE curriculum_releases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        grade_id INTEGER NOT NULL,
+        track_id INTEGER,
+        academic_year TEXT NOT NULL,
+        edition_code TEXT NOT NULL,
+        edition_label TEXT NOT NULL,
+        issuing_authority TEXT,
+        source_title TEXT,
+        source_url TEXT,
+        published_at TEXT,
+        verification_status TEXT NOT NULL DEFAULT 'pending'
+          CHECK (verification_status IN ('pending', 'verified', 'rejected')),
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (grade_id) REFERENCES grades(id) ON DELETE CASCADE,
+        FOREIGN KEY (track_id) REFERENCES study_tracks(id) ON DELETE SET NULL,
+        UNIQUE (grade_id, academic_year, edition_code)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE curriculum_release_subjects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        release_id INTEGER NOT NULL,
+        subject_id INTEGER NOT NULL,
+        requirement_type TEXT NOT NULL DEFAULT 'unclassified'
+          CHECK (requirement_type IN ('mandatory', 'elective', 'unclassified')),
+        selection_group TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        verification_status TEXT NOT NULL DEFAULT 'pending'
+          CHECK (verification_status IN ('pending', 'verified', 'rejected')),
+        source_reference TEXT,
+        notes TEXT,
+        FOREIGN KEY (release_id) REFERENCES curriculum_releases(id) ON DELETE CASCADE,
+        FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+        UNIQUE (release_id, subject_id)
+      )
+    ''');
+
+    await db.execute('''
+      ALTER TABLE curriculum_units
+      ADD COLUMN release_subject_id INTEGER
+      REFERENCES curriculum_release_subjects(id) ON DELETE SET NULL
+    ''');
+
+    await db.execute(
+      'CREATE INDEX idx_curriculum_releases_grade_year '
+      'ON curriculum_releases(grade_id, academic_year, verification_status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_release_subjects_release '
+      'ON curriculum_release_subjects(release_id, sort_order)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_release_subjects_subject '
+      'ON curriculum_release_subjects(subject_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_units_release_subject '
+      'ON curriculum_units(release_subject_id)',
+    );
+
+    // Enforce that a release only contains subjects belonging to its grade
+    // and, when specified, compatible with its study track.
+    await db.execute('''
+      CREATE TRIGGER validate_release_subject_insert
+      BEFORE INSERT ON curriculum_release_subjects
+      BEGIN
+        SELECT CASE WHEN NOT EXISTS (
+          SELECT 1
+          FROM curriculum_releases r
+          JOIN subjects s ON s.id = NEW.subject_id
+          WHERE r.id = NEW.release_id
+            AND r.grade_id = s.grade_id
+            AND (r.track_id IS NULL OR s.track_id IS NULL OR r.track_id = s.track_id)
+        ) THEN RAISE(ABORT, 'Subject does not match curriculum release grade or track') END;
+      END
+    ''');
+    await db.execute('''
+      CREATE TRIGGER validate_release_subject_update
+      BEFORE UPDATE OF release_id, subject_id ON curriculum_release_subjects
+      BEGIN
+        SELECT CASE WHEN NOT EXISTS (
+          SELECT 1
+          FROM curriculum_releases r
+          JOIN subjects s ON s.id = NEW.subject_id
+          WHERE r.id = NEW.release_id
+            AND r.grade_id = s.grade_id
+            AND (r.track_id IS NULL OR s.track_id IS NULL OR r.track_id = s.track_id)
+        ) THEN RAISE(ABORT, 'Subject does not match curriculum release grade or track') END;
+      END
+    ''');
   }
 
   Future<void> _upgradeSchema(
@@ -255,7 +354,9 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
-    // Add versioned migrations here before increasing databaseVersion.
+    if (oldVersion < 2) {
+      await _migrateToV2(db);
+    }
   }
 
   Future<void> close() async {
