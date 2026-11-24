@@ -1,5 +1,5 @@
 import { importContentPackage } from './content-packages.js';
-import { getContentPackages, getPackageReviewHistory, reviewContentPackage, getAll } from './database.js';
+import { getContentPackages, getPackageReviewHistory, reviewContentPackage, getQuestionsForAnswerReview, getAnswerKeyReviewHistory, reviewAnswerKey, getAll } from './database.js';
 
 function node(tag, text = '', className = '') {
   const el = document.createElement(tag);
@@ -71,6 +71,10 @@ export async function renderContentAdmin(container) {
   const listHeading = node('h4', 'الحزم المنتظرة للمراجعة');
   const list = node('div', '', 'admin-package-list');
   container.append(listHeading, list);
+  const answerHeading=node('h4','مراجعة مفاتيح الإجابة');
+  const answerHelp=node('p','لا يُفعّل التصحيح الآلي إلا بعد مطابقة الإجابة مع مرجع موثوق وكتابة بيانات المراجعة.','admin-muted');
+  const answerList=node('div','','admin-package-list');
+  container.append(node('hr'),answerHeading,answerHelp,answerList);
 
   async function refreshPackages() {
     list.replaceChildren();
@@ -116,5 +120,48 @@ export async function renderContentAdmin(container) {
       list.append(card);
     }
   }
-  await refreshPackages();
+  async function refreshAnswerKeys() {
+    answerList.replaceChildren();
+    const questions=await getQuestionsForAnswerReview();
+    if(!questions.length){answerList.append(node('p','لا توجد مفاتيح إجابة تنتظر المراجعة.','admin-muted'));return;}
+    for(const q of questions){
+      const card=node('article','','admin-package');
+      card.append(node('h4',q.package_title+' — '+q.subject_name));
+      card.append(node('p',q.prompt_ar||'سؤال دون نص'));
+      let options=[];
+      try{options=q.options_json?JSON.parse(q.options_json):[];}catch{}
+      if(Array.isArray(options))for(const option of options){
+        const label=typeof option==='object'?(option.label??option.value??'') : String(option);
+        card.append(node('p','خيار: '+String(label)));
+      }
+      let answer='غير متاح';
+      try{answer=JSON.stringify(JSON.parse(q.answer_json));}catch{}
+      card.append(node('p','مفتاح الإجابة المسجل: '+answer));
+      card.append(node('p',q.answer_key_verified===1?'الحالة: مفتاح موثق':'الحالة: غير موثق — لا تصحيح آلي'));
+      const source=document.createElement('input');source.type='text';source.maxLength=240;source.placeholder='مرجع الإجابة (الكتاب والصفحة أو نموذج إجابة معتمد)';
+      const comment=document.createElement('textarea');comment.rows=2;comment.maxLength=1000;comment.placeholder='ملاحظات المراجعة أو سبب الرفض';
+      card.append(field('مرجع الإجابة',source),field('ملاحظات',comment));
+      const actions=node('div','','admin-actions');
+      actions.append(button('توثيق مفتاح الإجابة','admin-approve',async()=>{
+        if(!reviewer.value.trim()){importStatus.textContent='اكتب اسم المراجع أولاً.';return;}
+        if(!source.value.trim()){importStatus.textContent='مرجع الإجابة إلزامي.';return;}
+        if(!confirm('هل طابقت الإجابة مع المرجع المذكور وتريد تفعيل التصحيح الآلي؟'))return;
+        try{await reviewAnswerKey({questionId:q.id,decision:'verified',reviewerLabel:reviewer.value,sourceReference:source.value,notes:comment.value});importStatus.textContent='تم توثيق مفتاح الإجابة وتفعيل التصحيح الآلي لهذا السؤال.';await refreshAnswerKeys();}
+        catch(error){importStatus.textContent=error.message||'تعذر توثيق مفتاح الإجابة.';}
+      }));
+      actions.append(button('رفض المفتاح','admin-reject',async()=>{
+        if(!reviewer.value.trim()){importStatus.textContent='اكتب اسم المراجع أولاً.';return;}
+        if(!comment.value.trim()){importStatus.textContent='سبب الرفض إلزامي.';return;}
+        if(!confirm('هل تريد رفض مفتاح الإجابة؟'))return;
+        try{await reviewAnswerKey({questionId:q.id,decision:'rejected',reviewerLabel:reviewer.value,sourceReference:source.value,notes:comment.value});importStatus.textContent='تم رفض مفتاح الإجابة وإبقاء التصحيح الآلي معطلاً.';await refreshAnswerKeys();}
+        catch(error){importStatus.textContent=error.message||'تعذر رفض مفتاح الإجابة.';}
+      }));
+      card.append(actions);
+      const history=await getAnswerKeyReviewHistory(q.id);
+      if(history.length)card.append(node('p','سجل مراجعات المفتاح: '+history.length,'admin-muted'));
+      answerList.append(card);
+    }
+  }
+
+  await Promise.all([refreshPackages(),refreshAnswerKeys()]);
 }
