@@ -264,6 +264,7 @@ export async function createCurriculumRelease({gradeId,trackId=null,academicYear
 export async function createCurriculumReleaseSubject({releaseId,subjectId,requirementType='unclassified',selectionGroup=null,sortOrder=0,sourceReference}){
  const [release,subject,mappings]=await Promise.all([getRecord('curriculum_releases',Number(releaseId)),getRecord('subjects',Number(subjectId)),getAll('curriculum_release_subjects')]);
  if(!release||!subject)throw new Error('إصدار المنهج أو المادة غير موجود.');
+ if(release.verification_status==='rejected')throw new Error('لا يمكن ربط مادة بإصدار منهج مرفوض.');
  if(release.grade_id!==subject.grade_id||(release.track_id!==null&&subject.track_id!==null&&release.track_id!==subject.track_id))throw new Error('المادة وإصدار المنهج لا يتبعان الصف أو المسار نفسه.');
  if(!['mandatory','elective','unclassified'].includes(requirementType))throw new Error('نوع المقرر غير صالح.');
  if(!Number.isInteger(Number(sortOrder)))throw new Error('ترتيب المادة في المنهج غير صالح.');
@@ -275,6 +276,7 @@ export async function reviewCurriculumRecord({entityType,entityId,decision,revie
  if(!['release','mapping'].includes(entityType)||!['verified','rejected'].includes(decision))throw new Error('بيانات مراجعة المنهج غير صالحة.');
  const reviewer=String(reviewerLabel||'').trim(),source=String(sourceReference||'').trim(),comment=String(notes||'').trim()||null;
  if(!reviewer||!source)throw new Error('اسم المراجع ومرجع المصدر مطلوبان.');
+ if(decision==='rejected'&&!comment)throw new Error('سبب الرفض مطلوب.');
  const storeName=entityType==='release'?'curriculum_releases':'curriculum_release_subjects';
  const db=await openDb();
  return new Promise((resolve,reject)=>{
