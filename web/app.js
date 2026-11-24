@@ -1,4 +1,5 @@
 import {renderPdfAsset} from './pdf-viewer.js';
+import {groupCurriculumUnits,filterCurriculumEntries,getCurriculumUnitStats} from './curriculum-view.js';
 import {CONTENT_ADMIN_ENABLED} from './app-config.js';
 import {renderContentAdmin} from './content-admin.js';
 import {getStudentProfile,saveStudentProfile,hasLocalCredential,createLocalCredential,verifyLocalCredential,getTracksForGrade,getApprovedUnits,getApprovedLessons,getPublishedExams,getAll,saveLessonProgress,startExamAttempt,getExamAttempt,getAttemptAnswers,getActiveExamAttempts,getAttemptQuestions,saveAttemptAnswer,submitExamAttempt,getAttemptHistory,getPublishedNotes,getStudentDashboard,recordLessonStudySession,getPackageAsset} from './database.js';
@@ -57,12 +58,7 @@ async function showContent(view){if(view!=='content-admin')setActiveNavigation(v
     Promise.all(units.map(async unit=>({unit,lessons:await getApprovedLessons(unit.id)})))
   ]);
   const progressByLesson=new Map(progressRows.map(row=>[row.lesson_id,row]));
-  const subjectMap=new Map();
-  for(const entry of lessonGroups){
-    const name=entry.unit.subject_name||'مادة غير مسماة';
-    if(!subjectMap.has(name))subjectMap.set(name,[]);
-    subjectMap.get(name).push(entry);
-  }
+  const subjectMap=groupCurriculumUnits(lessonGroups);
   const searchWrap=document.createElement('label');
   searchWrap.className='curriculum-search';
   searchWrap.textContent='ابحث عن مادة أو وحدة';
@@ -76,25 +72,24 @@ async function showContent(view){if(view!=='content-admin')setActiveNavigation(v
     const needle=query.trim().toLocaleLowerCase('ar');
     let visibleSubjects=0,visibleUnits=0,totalLessons=0,completedLessons=0;
     for(const [subject,entries] of subjectMap){
-      const matched=entries.filter(({unit})=>!needle||subject.toLocaleLowerCase('ar').includes(needle)||unit.title_ar.toLocaleLowerCase('ar').includes(needle));
+      const matched=filterCurriculumEntries(entries,subject,needle);
       if(!matched.length)continue;
       visibleSubjects++;
       const group=document.createElement('section');group.className='subject-group curriculum-subject';
       const heading=document.createElement('h3');heading.textContent=subject;group.append(heading);
-      const subjectLessons=matched.reduce((n,item)=>n+item.lessons.length,0);
-      const subjectDone=matched.reduce((n,item)=>n+item.lessons.filter(lesson=>progressByLesson.get(lesson.id)?.status==='completed').length,0);
+      const subjectStats=matched.reduce((stats,item)=>{const unitStats=getCurriculumUnitStats(item.lessons,progressByLesson);stats.total+=unitStats.total;stats.completed+=unitStats.completed;return stats;},{total:0,completed:0});
       const meta=document.createElement('p');meta.className='curriculum-meta';
-      meta.textContent=matched.length+' وحدة · '+subjectLessons+' درس · '+subjectDone+' مكتمل';
+      meta.textContent=matched.length+' وحدة · '+subjectStats.total+' درس · '+subjectStats.completed+' مكتمل';
       group.append(meta);
       for(const {unit,lessons} of matched){
         visibleUnits++;totalLessons+=lessons.length;
-        const done=lessons.filter(lesson=>progressByLesson.get(lesson.id)?.status==='completed').length;
+        const unitStats=getCurriculumUnitStats(lessons,progressByLesson),done=unitStats.completed;
         completedLessons+=done;
         const card=document.createElement('button');card.type='button';card.className='content-item curriculum-unit';
         const title=document.createElement('strong');title.textContent=unit.title_ar;card.append(title);
         const detail=document.createElement('small');detail.textContent=lessons.length+' درس · '+done+' مكتمل';card.append(detail);
         const track=document.createElement('span');track.className='curriculum-progress-track';track.setAttribute('role','progressbar');track.setAttribute('aria-label','نسبة إنجاز '+unit.title_ar);track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');
-        const fill=document.createElement('span');const percent=lessons.length?Math.round(done/lessons.length*100):0;fill.style.width=percent+'%';track.setAttribute('aria-valuenow',String(percent));track.append(fill);card.append(track);
+        const fill=document.createElement('span');const percent=unitStats.percent;fill.style.width=percent+'%';track.setAttribute('aria-valuenow',String(percent));track.append(fill);card.append(track);
         card.addEventListener('click',async()=>{
           const currentLessons=lessons;
           contentList.replaceChildren();
