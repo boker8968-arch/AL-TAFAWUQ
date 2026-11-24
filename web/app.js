@@ -47,7 +47,86 @@ async function displayPackageAsset(packageId,path,kind){
 }
 function setActiveNavigation(view){const target=['lessons','notes'].includes(view)?'curriculum':view;document.querySelectorAll('.bottom [data-view]').forEach(button=>{const active=button.dataset.view===target;button.classList.toggle('active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});}
 function addContentButton(label,detail,onClick){const b=document.createElement('button');b.className='content-item';const strong=document.createElement('strong');strong.textContent=label;b.append(strong);if(detail){const small=document.createElement('small');small.textContent=detail;b.append(small);}if(onClick)b.addEventListener('click',onClick);contentList.append(b);}
-async function showContent(view){if(view!=='content-admin')setActiveNavigation(view);if(view==='content-admin'){if(!CONTENT_ADMIN_ENABLED){showMessage('أدوات إدارة المحتوى غير مفعلة في هذا الإصدار.');return;}clearContent();hideMessage();contentList.hidden=false;await renderContentAdmin(contentList);return;}const p=await getStudentProfile();if(!p){showMessage('يرجى إعداد بيانات الطالب واختيار الصف أولاً.');await openSetup();return;}if(view==='curriculum'||view==='lessons'){clearContent();const units=await getApprovedUnits({gradeId:p.grade_id,trackId:p.track_id});if(!units.length){showMessage('لا يوجد محتوى منشور ومعتمد لهذا الصف حتى الآن. ستظهر المواد بعد استيراد حزمة موثقة واعتمادها.');return;}hideMessage();contentList.hidden=false;const subjects=[...new Set(units.map(u=>u.subject_name).filter(Boolean))];for(const subject of subjects){const group=document.createElement('section');group.className='subject-group';const h=document.createElement('h3');h.textContent=subject;group.append(h);for(const unit of units.filter(u=>u.subject_name===subject)){const b=document.createElement('button');b.className='content-item';b.textContent=unit.title_ar;b.addEventListener('click',async()=>{const lessons=await getApprovedLessons(unit.id);contentList.replaceChildren();const back=document.createElement('button');back.className='back-link';back.textContent='← العودة إلى الوحدات';back.addEventListener('click',()=>showContent('curriculum'));contentList.append(back);const title=document.createElement('h3');title.textContent=unit.title_ar;contentList.append(title);if(!lessons.length){const empty=document.createElement('p');empty.textContent='لا توجد دروس منشورة داخل هذه الوحدة بعد.';contentList.append(empty);}for(const lesson of lessons){addContentButton(lesson.title_ar,lesson.summary_ar||'درس معتمد',async()=>{const lessonStartedAt=new Date();clearContent();contentList.hidden=false;const back=document.createElement('button');back.className='back-link';back.textContent='← العودة إلى الدروس';back.onclick=()=>showContent('lessons');contentList.append(back);const h=document.createElement('h3');h.textContent=lesson.title_ar;contentList.append(h);if(lesson.summary_ar){const sh=document.createElement('h4');sh.textContent='ملخص الدرس';contentList.append(sh);const summary=document.createElement('p');summary.textContent=lesson.summary_ar;contentList.append(summary);}if(lesson.body_path){const bodyHeading=document.createElement('h4');bodyHeading.textContent='محتوى الدرس';contentList.append(bodyHeading);await displayPackageAsset(lesson.package_id,lesson.body_path,'قارئ الدروس');}else{const note=document.createElement('p');note.textContent='لم يُرفق نص تفصيلي لهذا الدرس في الحزمة؛ يظهر الملخص المعتمد فقط.';contentList.append(note);}const done=document.createElement('button');done.className='primary-action';done.textContent='إكمال الدرس وحفظ التقدم';done.addEventListener('click',async()=>{try{await saveLessonProgress(lesson.id,100);await recordLessonStudySession(lesson.id,lessonStartedAt,new Date());showMessage('تم تسجيل إكمال الدرس وحفظ التقدم محلياً.');done.disabled=true;done.textContent='تم إكمال الدرس';}catch(e){showMessage(e.message||'تعذر حفظ التقدم.');}});contentList.append(done);});}});group.append(b);}contentList.append(group);}return;}if(view==='notes'){
+async function showContent(view){if(view!=='content-admin')setActiveNavigation(view);if(view==='content-admin'){if(!CONTENT_ADMIN_ENABLED){showMessage('أدوات إدارة المحتوى غير مفعلة في هذا الإصدار.');return;}clearContent();hideMessage();contentList.hidden=false;await renderContentAdmin(contentList);return;}const p=await getStudentProfile();if(!p){showMessage('يرجى إعداد بيانات الطالب واختيار الصف أولاً.');await openSetup();return;}if(view==='curriculum'||view==='lessons'){
+  clearContent();
+  const units=await getApprovedUnits({gradeId:p.grade_id,trackId:p.track_id});
+  if(!units.length){showMessage('لا يوجد محتوى منشور ومعتمد لهذا الصف حتى الآن. ستظهر المواد بعد استيراد حزمة موثقة واعتمادها.');return;}
+  hideMessage();contentList.hidden=false;
+  const [progressRows,lessonGroups]=await Promise.all([
+    getAll('study_progress'),
+    Promise.all(units.map(async unit=>({unit,lessons:await getApprovedLessons(unit.id)})))
+  ]);
+  const progressByLesson=new Map(progressRows.map(row=>[row.lesson_id,row]));
+  const subjectMap=new Map();
+  for(const entry of lessonGroups){
+    const name=entry.unit.subject_name||'مادة غير مسماة';
+    if(!subjectMap.has(name))subjectMap.set(name,[]);
+    subjectMap.get(name).push(entry);
+  }
+  const searchWrap=document.createElement('label');
+  searchWrap.className='curriculum-search';
+  searchWrap.textContent='ابحث عن مادة أو وحدة';
+  const search=document.createElement('input');
+  search.type='search';search.placeholder='اكتب اسم المادة أو الوحدة...';search.setAttribute('aria-label','البحث في المواد والوحدات');
+  searchWrap.append(search);contentList.append(searchWrap);
+  const summary=document.createElement('p');summary.className='curriculum-summary';contentList.append(summary);
+  const results=document.createElement('div');results.className='curriculum-results';contentList.append(results);
+  function renderCurriculum(query=''){
+    results.replaceChildren();
+    const needle=query.trim().toLocaleLowerCase('ar');
+    let visibleSubjects=0,visibleUnits=0,totalLessons=0,completedLessons=0;
+    for(const [subject,entries] of subjectMap){
+      const matched=entries.filter(({unit})=>!needle||subject.toLocaleLowerCase('ar').includes(needle)||unit.title_ar.toLocaleLowerCase('ar').includes(needle));
+      if(!matched.length)continue;
+      visibleSubjects++;
+      const group=document.createElement('section');group.className='subject-group curriculum-subject';
+      const heading=document.createElement('h3');heading.textContent=subject;group.append(heading);
+      const subjectLessons=matched.reduce((n,item)=>n+item.lessons.length,0);
+      const subjectDone=matched.reduce((n,item)=>n+item.lessons.filter(lesson=>progressByLesson.get(lesson.id)?.status==='completed').length,0);
+      const meta=document.createElement('p');meta.className='curriculum-meta';
+      meta.textContent=matched.length+' وحدة · '+subjectLessons+' درس · '+subjectDone+' مكتمل';
+      group.append(meta);
+      for(const {unit,lessons} of matched){
+        visibleUnits++;totalLessons+=lessons.length;
+        const done=lessons.filter(lesson=>progressByLesson.get(lesson.id)?.status==='completed').length;
+        completedLessons+=done;
+        const card=document.createElement('button');card.type='button';card.className='content-item curriculum-unit';
+        const title=document.createElement('strong');title.textContent=unit.title_ar;card.append(title);
+        const detail=document.createElement('small');detail.textContent=lessons.length+' درس · '+done+' مكتمل';card.append(detail);
+        const track=document.createElement('span');track.className='curriculum-progress-track';track.setAttribute('role','progressbar');track.setAttribute('aria-label','نسبة إنجاز '+unit.title_ar);track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');
+        const fill=document.createElement('span');const percent=lessons.length?Math.round(done/lessons.length*100):0;fill.style.width=percent+'%';track.setAttribute('aria-valuenow',String(percent));track.append(fill);card.append(track);
+        card.addEventListener('click',async()=>{
+          const currentLessons=lessons;
+          contentList.replaceChildren();
+          const back=document.createElement('button');back.className='back-link';back.textContent='← العودة إلى المواد والوحدات';back.addEventListener('click',()=>showContent('curriculum'));contentList.append(back);
+          const title=document.createElement('h3');title.textContent=unit.title_ar;contentList.append(title);
+          const subjectLabel=document.createElement('p');subjectLabel.className='curriculum-meta';subjectLabel.textContent=subject+' · '+currentLessons.length+' درس';contentList.append(subjectLabel);
+          if(!currentLessons.length){const empty=document.createElement('p');empty.textContent='لا توجد دروس منشورة داخل هذه الوحدة بعد.';contentList.append(empty);}
+          for(const lesson of currentLessons){
+            const row=progressByLesson.get(lesson.id);
+            const detail=row?.status==='completed'?'مكتمل':lesson.summary_ar||'درس معتمد';
+            addContentButton(lesson.title_ar,detail,async()=>{
+              const lessonStartedAt=new Date();clearContent();contentList.hidden=false;
+              const back=document.createElement('button');back.className='back-link';back.textContent='← العودة إلى الدروس';back.onclick=()=>showContent('curriculum');contentList.append(back);
+              const h=document.createElement('h3');h.textContent=lesson.title_ar;contentList.append(h);
+              if(lesson.summary_ar){const sh=document.createElement('h4');sh.textContent='ملخص الدرس';contentList.append(sh);const summary=document.createElement('p');summary.textContent=lesson.summary_ar;contentList.append(summary);}
+              if(lesson.body_path){const bodyHeading=document.createElement('h4');bodyHeading.textContent='محتوى الدرس';contentList.append(bodyHeading);await displayPackageAsset(lesson.package_id,lesson.body_path,'قارئ الدروس');}
+              else{const note=document.createElement('p');note.textContent='لم يُرفق نص تفصيلي لهذا الدرس في الحزمة؛ يظهر الملخص المعتمد فقط.';contentList.append(note);}
+              const done=document.createElement('button');done.className='primary-action';done.textContent='إكمال الدرس وحفظ التقدم';done.addEventListener('click',async()=>{try{await saveLessonProgress(lesson.id,100);await recordLessonStudySession(lesson.id,lessonStartedAt,new Date());showMessage('تم تسجيل إكمال الدرس وحفظ التقدم محلياً.');done.disabled=true;done.textContent='تم إكمال الدرس';}catch(e){showMessage(e.message||'تعذر حفظ التقدم.');}});contentList.append(done);
+            });
+          }
+        });
+        group.append(card);
+      }
+      results.append(group);
+    }
+    summary.textContent='المواد: '+visibleSubjects+' · الوحدات: '+visibleUnits+' · الدروس: '+totalLessons+' · المكتمل: '+completedLessons;
+    if(!visibleUnits){const empty=document.createElement('p');empty.className='curriculum-empty';empty.textContent='لا توجد نتائج مطابقة لبحثك.';results.append(empty);}
+  }
+  search.addEventListener('input',()=>renderCurriculum(search.value));
+  renderCurriculum();
+  return;
+}if(view==='notes'){
   clearContent();
   const notes=await getPublishedNotes({gradeId:p.grade_id,trackId:p.track_id});
   if(!notes.length){showMessage('لا توجد مذكرات منشورة ومعتمدة لهذا الصف حالياً.');return;}
