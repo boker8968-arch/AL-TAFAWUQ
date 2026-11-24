@@ -211,6 +211,12 @@ export async function reviewAnswerKey({questionId,decision,reviewerLabel,sourceR
   request.onsuccess=()=>{
    const q=request.result;
    if(!q||q.answer_json==null||!['multiple_choice','true_false'].includes(q.question_type)){failure=new Error('السؤال غير موجود أو لا يدعم التصحيح الآلي.');tx.abort();return;}
+   let parsedAnswer,parsedOptions=[];
+   try{parsedAnswer=JSON.parse(q.answer_json);parsedOptions=q.options_json?JSON.parse(q.options_json):[];}catch{failure=new Error('بيانات مفتاح الإجابة أو خيارات السؤال غير صالحة.');tx.abort();return;}
+   if(!Array.isArray(parsedOptions)){failure=new Error('خيارات السؤال غير صالحة.');tx.abort();return;}
+   const optionValues=parsedOptions.map(option=>option&&typeof option==='object'&&Object.prototype.hasOwnProperty.call(option,'value')?option.value:option);
+   if(q.question_type==='true_false'&&!parsedOptions.length)optionValues.push(true,false);
+   if(!optionValues.some(value=>JSON.stringify(value)===JSON.stringify(parsedAnswer))){failure=new Error('مفتاح الإجابة لا يطابق أي خيار متاح في السؤال.');tx.abort();return;}
    const packageRequest=tx.objectStore('content_packages').get(q.package_id);
    packageRequest.onsuccess=()=>{
     const pkg=packageRequest.result;
