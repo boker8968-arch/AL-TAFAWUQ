@@ -71,9 +71,12 @@ test('imports, reviews and publishes a supplemental package without trusting its
   assert.equal((await db.getPublishedExams({gradeId:3})).length,1);
   assert.equal((await db.getPackageReviewHistory(result.packageId)).length,1);
   const question=(await db.getAll('questions'))[0];
-  const attemptQuestions=await db.getAttemptQuestions(await db.startExamAttempt((await db.getPublishedExams({gradeId:3}))[0].id,{gradeId:3}));
+  const firstAttempt=await db.startExamAttempt((await db.getPublishedExams({gradeId:3}))[0].id,{gradeId:3});
+  const attemptQuestions=await db.getAttemptQuestions(firstAttempt);
   assert.equal('answer_json' in attemptQuestions[0],false);
   assert.equal('answer_key_verified' in attemptQuestions[0],false);
+  const ungraded=await db.submitExamAttempt(firstAttempt);
+  assert.deepEqual({score:ungraded.score,total:ungraded.total_marks,graded:ungraded.graded_questions},{score:0,total:0,graded:0});
   await assert.rejects(()=>db.reviewAnswerKey({questionId:question.id,decision:'verified',reviewerLabel:'مراجع الاختبار'}),/مرجع الإجابة مطلوب/);
   await db.reviewAnswerKey({questionId:question.id,decision:'verified',reviewerLabel:'مراجع الاختبار',sourceReference:'نموذج إجابة معتمد، صفحة 2'});
   assert.equal((await db.getAll('questions'))[0].answer_key_verified,1);
