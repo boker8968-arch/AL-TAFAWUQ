@@ -1,5 +1,5 @@
 import { importContentPackage } from './content-packages.js';
-import { getContentPackages, getPackageReviewHistory, reviewContentPackage, getQuestionsForAnswerReview, getAnswerKeyReviewHistory, reviewAnswerKey, getAll } from './database.js';
+import { getContentPackages, getPackageReviewHistory, reviewContentPackage, getQuestionsForAnswerReview, getAnswerKeyReviewHistory, reviewAnswerKey, getCurriculumCatalog, createCurriculumSubject, createCurriculumRelease, createCurriculumReleaseSubject, reviewCurriculumRecord, getCurriculumReviewHistory, getAll } from './database.js';
 
 function node(tag, text = '', className = '') {
   const el = document.createElement(tag);
@@ -69,6 +69,43 @@ export async function renderContentAdmin(container) {
   reviewFields.append(field('اسم المراجع', reviewer), field('ملاحظات المراجعة', notes));
   container.append(reviewFields);
 
+  const catalogHeading=node('h4','إعداد سجل المنهج والمواد');
+  const catalogHelp=node('p','أضف بيانات المواد وإصدار المنهج من مصادر موثوقة. تبدأ السجلات غير منشورة، ولا تظهر للطلاب حتى توثيق الإصدار وربط المادة كلٌّ على حدة.','admin-muted');
+  const catalogForms=node('section','','admin-catalog-forms');
+  const subjectForm=document.createElement('form');subjectForm.className='admin-catalog-form';
+  const subjectGrade=document.createElement('select');for(const [id,label] of [[1,'الأول الثانوي'],[2,'الثاني الثانوي'],[3,'الثالث الثانوي']])subjectGrade.add(new Option(label,String(id)));
+  const subjectCode=document.createElement('input');subjectCode.required=true;subjectCode.maxLength=80;subjectCode.placeholder='رمز داخلي للمادة بالإنجليزية';
+  const subjectName=document.createElement('input');subjectName.required=true;subjectName.maxLength=120;subjectName.placeholder='اسم المادة بالعربية';
+  const subjectSave=document.createElement('button');subjectSave.type='submit';subjectSave.className='primary-action';subjectSave.textContent='إضافة مادة غير منشورة';
+  subjectForm.append(node('h5','إضافة مادة'),field('الصف',subjectGrade),field('رمز المادة',subjectCode),field('اسم المادة',subjectName),subjectSave);
+
+  const releaseForm=document.createElement('form');releaseForm.className='admin-catalog-form';
+  const releaseGrade=document.createElement('select');for(const [id,label] of [[1,'الأول الثانوي'],[2,'الثاني الثانوي'],[3,'الثالث الثانوي']])releaseGrade.add(new Option(label,String(id)));
+  const academicYear=document.createElement('input');academicYear.required=true;academicYear.maxLength=30;academicYear.placeholder='السنة الدراسية كما وردت في المصدر';
+  const editionCode=document.createElement('input');editionCode.required=true;editionCode.maxLength=80;editionCode.placeholder='رمز الطبعة بالإنجليزية';
+  const editionLabel=document.createElement('input');editionLabel.required=true;editionLabel.maxLength=120;editionLabel.placeholder='اسم الطبعة';
+  const authority=document.createElement('input');authority.required=true;authority.maxLength=160;authority.placeholder='الجهة المصدرة';
+  const sourceTitle=document.createElement('input');sourceTitle.required=true;sourceTitle.maxLength=200;sourceTitle.placeholder='اسم الوثيقة أو المصدر';
+  const sourceUrl=document.createElement('input');sourceUrl.type='url';sourceUrl.maxLength=500;sourceUrl.placeholder='رابط المصدر (اختياري)';
+  const releaseSave=document.createElement('button');releaseSave.type='submit';releaseSave.className='primary-action';releaseSave.textContent='إضافة إصدار غير موثق';
+  releaseForm.append(node('h5','إضافة إصدار منهج'),field('الصف',releaseGrade),field('السنة الدراسية',academicYear),field('رمز الطبعة',editionCode),field('اسم الطبعة',editionLabel),field('الجهة المصدرة',authority),field('اسم المصدر',sourceTitle),field('رابط المصدر',sourceUrl),releaseSave);
+
+  const mappingForm=document.createElement('form');mappingForm.className='admin-catalog-form';
+  const releaseSelect=document.createElement('select'),subjectSelect=document.createElement('select');
+  const requirement=document.createElement('select');requirement.add(new Option('غير مصنف','unclassified'));requirement.add(new Option('إلزامي','mandatory'));requirement.add(new Option('اختياري','elective'));
+  const mappingOrder=document.createElement('input');mappingOrder.type='number';mappingOrder.min='0';mappingOrder.step='1';mappingOrder.value='0';
+  const mappingSource=document.createElement('input');mappingSource.required=true;mappingSource.maxLength=240;mappingSource.placeholder='مرجع وجود المادة في الإصدار';
+  const mappingSave=document.createElement('button');mappingSave.type='submit';mappingSave.className='primary-action';mappingSave.textContent='ربط المادة بإصدار المنهج';
+  mappingForm.append(node('h5','ربط مادة بإصدار'),field('إصدار المنهج',releaseSelect),field('المادة',subjectSelect),field('نوع المادة',requirement),field('الترتيب',mappingOrder),field('مرجع الربط',mappingSource),mappingSave);
+  catalogForms.append(subjectForm,releaseForm,mappingForm);
+  const catalogReviewHeading=node('h5','مراجعة سجلات المنهج');
+  const catalogReviewList=node('div','','admin-package-list');
+  container.append(catalogHeading,catalogHelp,catalogForms,catalogReviewHeading,catalogReviewList,node('hr'));
+
+  subjectForm.addEventListener('submit',async event=>{event.preventDefault();try{await createCurriculumSubject({gradeId:subjectGrade.value,code:subjectCode.value,nameAr:subjectName.value});subjectCode.value='';subjectName.value='';importStatus.textContent='أُضيفت المادة بحالة غير منشورة.';await refreshCatalog();}catch(error){importStatus.textContent=error.message||'تعذرت إضافة المادة.';}});
+  releaseForm.addEventListener('submit',async event=>{event.preventDefault();try{await createCurriculumRelease({gradeId:releaseGrade.value,academicYear:academicYear.value,editionCode:editionCode.value,editionLabel:editionLabel.value,issuingAuthority:authority.value,sourceTitle:sourceTitle.value,sourceUrl:sourceUrl.value});importStatus.textContent='أُضيف إصدار المنهج بحالة قيد التوثيق.';await refreshCatalog();}catch(error){importStatus.textContent=error.message||'تعذرت إضافة إصدار المنهج.';}});
+  mappingForm.addEventListener('submit',async event=>{event.preventDefault();try{await createCurriculumReleaseSubject({releaseId:releaseSelect.value,subjectId:subjectSelect.value,requirementType:requirement.value,sortOrder:mappingOrder.value,sourceReference:mappingSource.value});mappingSource.value='';importStatus.textContent='أُضيف ربط المادة بحالة قيد التوثيق.';await refreshCatalog();}catch(error){importStatus.textContent=error.message||'تعذر ربط المادة بإصدار المنهج.';}});
+
   const listHeading = node('h4', 'الحزم المنتظرة للمراجعة');
   const list = node('div', '', 'admin-package-list');
   container.append(listHeading, list);
@@ -76,6 +113,39 @@ export async function renderContentAdmin(container) {
   const answerHelp=node('p','لا يُفعّل التصحيح الآلي إلا بعد مطابقة الإجابة مع مرجع موثوق وكتابة بيانات المراجعة.','admin-muted');
   const answerList=node('div','','admin-package-list');
   container.append(node('hr'),answerHeading,answerHelp,answerList);
+
+  async function refreshCatalog(){
+    const catalog=await getCurriculumCatalog();
+    releaseSelect.replaceChildren(new Option('اختر إصداراً',''));
+    for(const item of catalog.releases)releaseSelect.add(new Option(item.academic_year+' — '+item.edition_label+' ('+item.verification_status+')',String(item.id)));
+    subjectSelect.replaceChildren(new Option('اختر مادة',''));
+    for(const item of catalog.subjects)subjectSelect.add(new Option(item.name_ar+' — الصف '+item.grade_id,String(item.id)));
+    catalogReviewList.replaceChildren();
+    const pendingReleases=catalog.releases.filter(x=>x.verification_status==='pending');
+    const pendingMappings=catalog.mappings.filter(x=>x.verification_status==='pending');
+    if(!pendingReleases.length&&!pendingMappings.length){catalogReviewList.append(node('p','لا توجد سجلات منهج تنتظر التوثيق.','admin-muted'));}
+    for(const item of pendingReleases){
+      const card=node('article','','admin-package');
+      card.append(node('h5','إصدار: '+item.edition_label+' — '+item.academic_year));
+      card.append(node('p','الصف: '+item.grade_id+' | الرمز: '+item.edition_code+' | الجهة: '+item.issuing_authority+' | المصدر: '+item.source_title));
+      const source=document.createElement('input');source.required=true;source.maxLength=240;source.placeholder='مرجع التحقق من الإصدار';
+      const actions=node('div','','admin-actions');
+      actions.append(button('توثيق الإصدار','admin-approve',async()=>{if(!reviewer.value.trim()||!source.value.trim()){importStatus.textContent='اسم المراجع ومرجع المصدر مطلوبان.';return;}if(!confirm('هل تحققت من بيانات هذا الإصدار ومصدره؟'))return;try{await reviewCurriculumRecord({entityType:'release',entityId:item.id,decision:'verified',reviewerLabel:reviewer.value,sourceReference:source.value,notes:notes.value});importStatus.textContent='تم توثيق إصدار المنهج.';await refreshCatalog();}catch(error){importStatus.textContent=error.message||'تعذر توثيق الإصدار.';}}));
+      actions.append(button('رفض الإصدار','admin-reject',async()=>{if(!reviewer.value.trim()||!source.value.trim()||!notes.value.trim()){importStatus.textContent='اسم المراجع والمرجع وسبب الرفض مطلوبة.';return;}try{await reviewCurriculumRecord({entityType:'release',entityId:item.id,decision:'rejected',reviewerLabel:reviewer.value,sourceReference:source.value,notes:notes.value});importStatus.textContent='تم رفض إصدار المنهج.';await refreshCatalog();}catch(error){importStatus.textContent=error.message||'تعذر رفض الإصدار.';}}));
+      card.append(field('مرجع التحقق',source),actions);catalogReviewList.append(card);
+    }
+    for(const item of pendingMappings){
+      const subject=catalog.subjects.find(x=>x.id===item.subject_id),release=catalog.releases.find(x=>x.id===item.release_id);
+      const card=node('article','','admin-package');
+      card.append(node('h5','ربط مادة: '+(subject?.name_ar||item.subject_id)));
+      card.append(node('p','الإصدار: '+(release?.edition_label||item.release_id)+' — '+(release?.academic_year||'')));
+      const source=document.createElement('input');source.required=true;source.maxLength=240;source.placeholder='مرجع ظهور المادة في المنهج';
+      const actions=node('div','','admin-actions');
+      actions.append(button('توثيق الربط','admin-approve',async()=>{if(!reviewer.value.trim()||!source.value.trim()){importStatus.textContent='اسم المراجع ومرجع المصدر مطلوبان.';return;}if(!confirm('هل تحققت من وجود المادة ضمن هذا الإصدار؟'))return;try{await reviewCurriculumRecord({entityType:'mapping',entityId:item.id,decision:'verified',reviewerLabel:reviewer.value,sourceReference:source.value,notes:notes.value});importStatus.textContent='تم توثيق ربط المادة.';await refreshCatalog();}catch(error){importStatus.textContent=error.message||'تعذر توثيق الربط.';}}));
+      actions.append(button('رفض الربط','admin-reject',async()=>{if(!reviewer.value.trim()||!source.value.trim()||!notes.value.trim()){importStatus.textContent='اسم المراجع والمرجع وسبب الرفض مطلوبة.';return;}try{await reviewCurriculumRecord({entityType:'mapping',entityId:item.id,decision:'rejected',reviewerLabel:reviewer.value,sourceReference:source.value,notes:notes.value});importStatus.textContent='تم رفض ربط المادة.';await refreshCatalog();}catch(error){importStatus.textContent=error.message||'تعذر رفض الربط.';}}));
+      card.append(field('مرجع التحقق',source),actions);catalogReviewList.append(card);
+    }
+  }
 
   async function refreshPackages() {
     list.replaceChildren();
@@ -165,5 +235,5 @@ export async function renderContentAdmin(container) {
     }
   }
 
-  await Promise.all([refreshPackages(),refreshAnswerKeys()]);
+  await Promise.all([refreshCatalog(),refreshPackages(),refreshAnswerKeys()]);
 }
