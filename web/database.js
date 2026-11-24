@@ -266,9 +266,10 @@ export async function createCurriculumReleaseSubject({releaseId,subjectId,requir
  if(!release||!subject)throw new Error('إصدار المنهج أو المادة غير موجود.');
  if(release.grade_id!==subject.grade_id||(release.track_id!==null&&subject.track_id!==null&&release.track_id!==subject.track_id))throw new Error('المادة وإصدار المنهج لا يتبعان الصف أو المسار نفسه.');
  if(!['mandatory','elective','unclassified'].includes(requirementType))throw new Error('نوع المقرر غير صالح.');
+ if(!Number.isInteger(Number(sortOrder)))throw new Error('ترتيب المادة في المنهج غير صالح.');
  if(!String(sourceReference||'').trim())throw new Error('مرجع ربط المادة بالمقرر مطلوب.');
  if(mappings.some(m=>m.release_id===Number(releaseId)&&m.subject_id===Number(subjectId)))throw new Error('المادة مرتبطة بهذا الإصدار مسبقاً.');
- return addRecord('curriculum_release_subjects',{release_id:Number(releaseId),subject_id:Number(subjectId),requirement_type:requirementType,selection_group:String(selectionGroup||'').trim()||null,sort_order:Number(sortOrder)||0,verification_status:'pending',source_reference:String(sourceReference).trim(),notes:null});
+ return addRecord('curriculum_release_subjects',{release_id:Number(releaseId),subject_id:Number(subjectId),requirement_type:requirementType,selection_group:String(selectionGroup||'').trim()||null,sort_order:Number(sortOrder),verification_status:'pending',source_reference:String(sourceReference).trim(),notes:null});
 }
 export async function reviewCurriculumRecord({entityType,entityId,decision,reviewerLabel,sourceReference,notes=null}){
  if(!['release','mapping'].includes(entityType)||!['verified','rejected'].includes(decision))throw new Error('بيانات مراجعة المنهج غير صالحة.');
@@ -277,7 +278,7 @@ export async function reviewCurriculumRecord({entityType,entityId,decision,revie
  const storeName=entityType==='release'?'curriculum_releases':'curriculum_release_subjects';
  const db=await openDb();
  return new Promise((resolve,reject)=>{
-  const names=[storeName,'curriculum_review_history','subjects','curriculum_releases'];
+  const names=[...new Set([storeName,'curriculum_review_history','subjects','curriculum_releases'])];
   const tx=db.transaction(names,'readwrite');
   const store=tx.objectStore(storeName),request=store.get(Number(entityId));
   let failure=null;
