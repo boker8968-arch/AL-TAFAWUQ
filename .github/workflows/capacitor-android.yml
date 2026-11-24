@@ -48,6 +48,19 @@ jobs:
           unzip -t al-tafawuq-html.zip
       - name: Generate Android wrapper
         run: npx cap add android
+      - name: Apply branded Android launcher icon
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+          for spec in "mdpi 48" "hdpi 72" "xhdpi 96" "xxhdpi 144" "xxxhdpi 192"; do
+            set -- $spec
+            density=$1
+            size=$2
+            mkdir -p "android/app/src/main/res/mipmap-$density"
+            rsvg-convert -w "$size" -h "$size" icon.svg > "android/app/src/main/res/mipmap-$density/ic_launcher.png"
+            cp "android/app/src/main/res/mipmap-$density/ic_launcher.png" "android/app/src/main/res/mipmap-$density/ic_launcher_round.png"
+          done
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
       - name: Sync Capacitor
         run: npx cap sync android
       - name: Build debug APK
