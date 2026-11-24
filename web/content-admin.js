@@ -133,7 +133,7 @@ export async function renderContentAdmin(container) {
       let options=[];
       try{options=q.options_json?JSON.parse(q.options_json):[];}catch{}
       if(Array.isArray(options))for(const option of options){
-        const label=typeof option==='object'?(option.label??option.value??'') : String(option);
+        const label=typeof option==='object'&&option!==null?(option.label??option.value??'') : String(option??'');
         card.append(node('p','خيار: '+String(label)));
       }
       let answer='غير متاح';
