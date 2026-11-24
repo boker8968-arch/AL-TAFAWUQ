@@ -40,6 +40,12 @@ jobs:
           test -s www/vendor/pdfjs/pdf.worker.mjs
           test -s www/pdf-assets.json
           grep -q 'CONTENT_ADMIN_ENABLED = true' www/app-config.js
+      - name: Package standalone HTML version
+        run: |
+          cd www
+          zip -qr ../al-tafawuq-html.zip .
+          cd ..
+          unzip -t al-tafawuq-html.zip
       - name: Generate Android wrapper
         run: npx cap add android
       - name: Sync Capacitor
@@ -49,6 +55,15 @@ jobs:
         run: chmod +x gradlew && ./gradlew assembleDebug
       - name: Verify APK archive
         run: unzip -t android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload APK and HTML test packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: al-tafawuq-test-packages
+          path: |
+            web/android/app/build/outputs/apk/debug/app-debug.apk
+            web/al-tafawuq-html.zip
+          if-no-files-found: error
+          retention-days: 7
       - name: Install and launch on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -60,9 +75,3 @@ jobs:
             adb install -r web/android/app/build/outputs/apk/debug/app-debug.apk
             adb shell monkey -p sd.bokerpharma.altafawuq 1
             adb shell 'for i in $(seq 1 20); do pidof sd.bokerpharma.altafawuq && exit 0; sleep 1; done; exit 1'
-      - uses: actions/upload-artifact@v4
-        with:
-          name: al-tafawuq-capacitor-debug-apk
-          path: web/android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 7
