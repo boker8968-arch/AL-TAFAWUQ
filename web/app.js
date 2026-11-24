@@ -1,6 +1,7 @@
 import {renderPdfAsset} from './pdf-viewer.js';
 import {groupCurriculumUnits,filterCurriculumEntries,getCurriculumUnitStats} from './curriculum-view.js';
 import {filterStudyNotes,groupStudyNotes} from './notes-view.js';
+import {filterPublishedExams,groupExamsBySubject} from './exams-view.js';
 import {CONTENT_ADMIN_ENABLED} from './app-config.js';
 import {renderContentAdmin} from './content-admin.js';
 import {getStudentProfile,saveStudentProfile,hasLocalCredential,createLocalCredential,verifyLocalCredential,getTracksForGrade,getApprovedUnits,getApprovedLessons,getPublishedExams,getAll,saveLessonProgress,startExamAttempt,getExamAttempt,getAttemptAnswers,getActiveExamAttempts,getAttemptQuestions,saveAttemptAnswer,submitExamAttempt,getAttemptHistory,getPublishedNotes,getStudentDashboard,recordLessonStudySession,getPackageAsset} from './database.js';
@@ -207,8 +208,42 @@ if(view==='notes'){
   }
   search.addEventListener('input',()=>renderNotes(search.value));renderNotes();return;
 }
-if(view==='exams'){clearContent();const [exams,active]=await Promise.all([getPublishedExams({gradeId:p.grade_id,trackId:p.track_id}),getActiveExamAttempts({gradeId:p.grade_id,trackId:p.track_id})]);if(!exams.length&&!active.length){showMessage('لا توجد امتحانات منشورة ومعتمدة لهذا الصف حالياً.');return;}hideMessage();contentList.hidden=false;if(active.length){const h=document.createElement('h3');h.textContent='محاولات قيد التنفيذ';contentList.append(h);for(const attempt of active){const exam=attempt.exam;addContentButton('متابعة: '+exam.title_ar,attempt.expires_at&&Date.parse(attempt.expires_at)<=Date.now()?'انتهى الوقت — سيتم تسليم المحاولة عند فتحها':'محاولة محفوظة على هذا الجهاز',()=>openExam(exam,p,attempt.id));}}if(exams.length){const h=document.createElement('h3');h.textContent='الامتحانات المتاحة';contentList.append(h);}for(const exam of exams)if(!active.some(attempt=>attempt.exam_id===exam.id))addContentButton(exam.title_ar,exam.subject_name+' — '+exam.question_count+' سؤال'+(exam.duration_minutes?' — '+exam.duration_minutes+' دقيقة':''),()=>openExam(exam,p));}}
-
+if(view==='exams'){
+  clearContent();
+  const [exams,active]=await Promise.all([getPublishedExams({gradeId:p.grade_id,trackId:p.track_id}),getActiveExamAttempts({gradeId:p.grade_id,trackId:p.track_id})]);
+  if(!exams.length&&!active.length){showMessage('لا توجد امتحانات منشورة ومعتمدة لهذا الصف حالياً.');return;}
+  hideMessage();contentList.hidden=false;
+  if(active.length){
+    const h=document.createElement('h3');h.textContent='محاولات قيد التنفيذ';contentList.append(h);
+    for(const attempt of active){const exam=attempt.exam;addContentButton('متابعة: '+exam.title_ar,attempt.expires_at&&Date.parse(attempt.expires_at)<=Date.now()?'انتهى الوقت — سيتم تسليم المحاولة عند فتحها':'محاولة محفوظة على هذا الجهاز',()=>openExam(exam,p,attempt.id));}
+  }
+  if(exams.length){
+    const h=document.createElement('h3');h.textContent='الامتحانات السابقة والتدريبية';contentList.append(h);
+    const searchWrap=document.createElement('label');searchWrap.className='curriculum-search';searchWrap.textContent='ابحث باسم الامتحان أو المادة أو السنة';
+    const search=document.createElement('input');search.type='search';search.placeholder='مثلاً: الرياضيات أو 2024';search.setAttribute('aria-label','البحث في الامتحانات');searchWrap.append(search);contentList.append(searchWrap);
+    const summary=document.createElement('p');summary.className='curriculum-summary';contentList.append(summary);
+    const results=document.createElement('div');results.className='exam-results';contentList.append(results);
+    function renderExams(query=''){
+      results.replaceChildren();
+      const filtered=filterPublishedExams(exams,query),groups=groupExamsBySubject(filtered);
+      let count=0;
+      for(const [subject,items] of groups){
+        const section=document.createElement('section');section.className='curriculum-subject exam-subject';
+        const title=document.createElement('h3');title.textContent=subject;section.append(title);
+        const meta=document.createElement('p');meta.className='curriculum-meta';meta.textContent=items.length+' امتحان متاح';section.append(meta);
+        for(const exam of items)if(!active.some(attempt=>attempt.exam_id===exam.id)){
+          count++;
+          const year=exam.academic_year||exam.year||'السنة غير محددة';
+          addContentButton(exam.title_ar,year+' — '+exam.question_count+' سؤال'+(exam.duration_minutes?' — '+exam.duration_minutes+' دقيقة':''),()=>openExam(exam,p));
+        }
+        results.append(section);
+      }
+      summary.textContent='الامتحانات المطابقة: '+count+' · المواد: '+groups.size;
+      if(!filtered.length){const empty=document.createElement('p');empty.className='curriculum-empty';empty.textContent='لا توجد امتحانات مطابقة لبحثك.';results.append(empty);}
+    }
+    search.addEventListener('input',()=>renderExams(search.value));renderExams();
+  }
+}
 async function openExam(exam,profile,resumeAttemptId=null){
   clearContent();hideMessage();contentList.hidden=false;
   const heading=document.createElement('h3');heading.textContent=exam.title_ar;contentList.append(heading);
