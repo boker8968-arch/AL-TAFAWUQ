@@ -1,5 +1,6 @@
 import {renderPdfAsset} from './pdf-viewer.js';
 import {groupCurriculumUnits,filterCurriculumEntries,getCurriculumUnitStats} from './curriculum-view.js';
+import {filterStudyNotes,groupStudyNotes} from './notes-view.js';
 import {CONTENT_ADMIN_ENABLED} from './app-config.js';
 import {renderContentAdmin} from './content-admin.js';
 import {getStudentProfile,saveStudentProfile,hasLocalCredential,createLocalCredential,verifyLocalCredential,getTracksForGrade,getApprovedUnits,getApprovedLessons,getPublishedExams,getAll,saveLessonProgress,startExamAttempt,getExamAttempt,getAttemptAnswers,getActiveExamAttempts,getAttemptQuestions,saveAttemptAnswer,submitExamAttempt,getAttemptHistory,getPublishedNotes,getStudentDashboard,recordLessonStudySession,getPackageAsset} from './database.js';
@@ -174,16 +175,39 @@ if(view==='notes'){
   const notes=await getPublishedNotes({gradeId:p.grade_id,trackId:p.track_id});
   if(!notes.length){showMessage('لا توجد مذكرات منشورة ومعتمدة لهذا الصف حالياً.');return;}
   hideMessage();contentList.hidden=false;
-  const heading=document.createElement('h3');heading.textContent='المذكرات';contentList.append(heading);
-  for(const note of notes)addContentButton(note.title_ar,note.subject_name+' — '+(note.category||'المذكرات'),async()=>{
-    clearContent();contentList.hidden=false;
-    const back=document.createElement('button');back.className='back-link';back.textContent='← العودة إلى المذكرات';back.onclick=()=>showContent('notes');contentList.append(back);
-    const title=document.createElement('h3');title.textContent=note.title_ar;contentList.append(title);
-    if(note.summary_ar){const summary=document.createElement('p');summary.textContent=note.summary_ar;contentList.append(summary);}
-    await displayPackageAsset(note.package_id,note.body_path,'قارئ المذكرات');
-  });
-  return;
-}if(view==='exams'){clearContent();const [exams,active]=await Promise.all([getPublishedExams({gradeId:p.grade_id,trackId:p.track_id}),getActiveExamAttempts({gradeId:p.grade_id,trackId:p.track_id})]);if(!exams.length&&!active.length){showMessage('لا توجد امتحانات منشورة ومعتمدة لهذا الصف حالياً.');return;}hideMessage();contentList.hidden=false;if(active.length){const h=document.createElement('h3');h.textContent='محاولات قيد التنفيذ';contentList.append(h);for(const attempt of active){const exam=attempt.exam;addContentButton('متابعة: '+exam.title_ar,attempt.expires_at&&Date.parse(attempt.expires_at)<=Date.now()?'انتهى الوقت — سيتم تسليم المحاولة عند فتحها':'محاولة محفوظة على هذا الجهاز',()=>openExam(exam,p,attempt.id));}}if(exams.length){const h=document.createElement('h3');h.textContent='الامتحانات المتاحة';contentList.append(h);}for(const exam of exams)if(!active.some(attempt=>attempt.exam_id===exam.id))addContentButton(exam.title_ar,exam.subject_name+' — '+exam.question_count+' سؤال'+(exam.duration_minutes?' — '+exam.duration_minutes+' دقيقة':''),()=>openExam(exam,p));}}
+  const heading=document.createElement('h3');heading.textContent='المذكرات والملخصات';contentList.append(heading);
+  const searchWrap=document.createElement('label');searchWrap.className='curriculum-search';searchWrap.textContent='ابحث في المذكرات والملخصات';
+  const search=document.createElement('input');search.type='search';search.placeholder='اسم المذكرة أو المادة أو موضوعها...';search.setAttribute('aria-label','البحث في المذكرات');searchWrap.append(search);contentList.append(searchWrap);
+  const summary=document.createElement('p');summary.className='curriculum-summary';contentList.append(summary);
+  const results=document.createElement('div');results.className='notes-results';contentList.append(results);
+  function renderNotes(query=''){
+    results.replaceChildren();
+    const filtered=filterStudyNotes(notes,query),groups=groupStudyNotes(filtered);
+    let count=0;
+    for(const [subject,items] of groups){
+      const section=document.createElement('section');section.className='subject-group curriculum-subject notes-subject';
+      const subjectHeading=document.createElement('h3');subjectHeading.textContent=subject;section.append(subjectHeading);
+      const meta=document.createElement('p');meta.className='curriculum-meta';meta.textContent=items.length+' ملف معتمد';section.append(meta);
+      for(const note of items){
+        count++;
+        const detail=note.summary_ar||note.category||'مذكرة معتمدة';
+        addContentButton(note.title_ar,detail,async()=>{
+          clearContent();hideMessage();contentList.hidden=false;
+          const back=document.createElement('button');back.className='back-link';back.textContent='← العودة إلى المذكرات';back.onclick=()=>showContent('notes');contentList.append(back);
+          const title=document.createElement('h3');title.textContent=note.title_ar;contentList.append(title);
+          const subjectLine=document.createElement('p');subjectLine.className='curriculum-meta';subjectLine.textContent=subject+' · '+(note.category||'المذكرات');contentList.append(subjectLine);
+          if(note.summary_ar){const summaryHeading=document.createElement('h4');summaryHeading.textContent='نبذة عن الملف';contentList.append(summaryHeading);const summaryText=document.createElement('p');summaryText.textContent=note.summary_ar;contentList.append(summaryText);}
+          await displayPackageAsset(note.package_id,note.body_path,'قارئ المذكرات');
+        });
+      }
+      results.append(section);
+    }
+    summary.textContent='الملفات المعتمدة: '+count+' · المواد: '+groups.size;
+    if(!count){const empty=document.createElement('p');empty.className='curriculum-empty';empty.textContent='لا توجد مذكرات مطابقة لبحثك.';results.append(empty);}
+  }
+  search.addEventListener('input',()=>renderNotes(search.value));renderNotes();return;
+}
+if(view==='exams'){clearContent();const [exams,active]=await Promise.all([getPublishedExams({gradeId:p.grade_id,trackId:p.track_id}),getActiveExamAttempts({gradeId:p.grade_id,trackId:p.track_id})]);if(!exams.length&&!active.length){showMessage('لا توجد امتحانات منشورة ومعتمدة لهذا الصف حالياً.');return;}hideMessage();contentList.hidden=false;if(active.length){const h=document.createElement('h3');h.textContent='محاولات قيد التنفيذ';contentList.append(h);for(const attempt of active){const exam=attempt.exam;addContentButton('متابعة: '+exam.title_ar,attempt.expires_at&&Date.parse(attempt.expires_at)<=Date.now()?'انتهى الوقت — سيتم تسليم المحاولة عند فتحها':'محاولة محفوظة على هذا الجهاز',()=>openExam(exam,p,attempt.id));}}if(exams.length){const h=document.createElement('h3');h.textContent='الامتحانات المتاحة';contentList.append(h);}for(const exam of exams)if(!active.some(attempt=>attempt.exam_id===exam.id))addContentButton(exam.title_ar,exam.subject_name+' — '+exam.question_count+' سؤال'+(exam.duration_minutes?' — '+exam.duration_minutes+' دقيقة':''),()=>openExam(exam,p));}}
 
 async function openExam(exam,profile,resumeAttemptId=null){
   clearContent();hideMessage();contentList.hidden=false;
