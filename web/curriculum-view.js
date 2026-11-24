@@ -10,7 +10,7 @@ export function groupCurriculumUnits(entries){
 export function filterCurriculumEntries(entries,subject,query=''){
  const needle=String(query||'').trim().toLocaleLowerCase('ar');
  if(!needle)return entries;
- return entries.filter(({unit})=>String(subject||'').toLocaleLowerCase('ar').includes(needle)||String(unit.title_ar||'').toLocaleLowerCase('ar').includes(needle));
+ return entries.filter(({unit})=>String(unit.subject_name||subject||'').toLocaleLowerCase('ar').includes(needle)||String(unit.title_ar||'').toLocaleLowerCase('ar').includes(needle));
 }
 export function getCurriculumUnitStats(lessons,progressByLesson){
  const completed=lessons.filter(lesson=>progressByLesson.get(lesson.id)?.status==='completed').length;
