@@ -62,6 +62,7 @@ test('imports, reviews and publishes a supplemental package without trusting its
   const questions=await db.getAll('questions');
   assert.equal(questions.length,1);
   assert.equal(questions[0].answer_key_verified,0);
+  await assert.rejects(()=>db.reviewAnswerKey({questionId:questions[0].id,decision:'verified',reviewerLabel:'مراجع الاختبار',sourceReference:'مرجع'}),/يجب اعتماد حزمة المحتوى أولاً/);
 
   await db.reviewContentPackage({packageId:result.packageId,decision:'approved',reviewerLabel:'مراجع الاختبار',notes:'تمت مراجعة عينة الاختبار.'});
   assert.equal((await db.getApprovedUnits({gradeId:3})).length,1);
@@ -70,6 +71,7 @@ test('imports, reviews and publishes a supplemental package without trusting its
   assert.equal(notes[0].category,'المذكرات');
   assert.equal((await db.getPublishedExams({gradeId:3})).length,1);
   assert.equal((await db.getPackageReviewHistory(result.packageId)).length,1);
+  assert.equal((await db.getQuestionsForAnswerReview()).length,1);
   const question=(await db.getAll('questions'))[0];
   const firstAttempt=await db.startExamAttempt((await db.getPublishedExams({gradeId:3}))[0].id,{gradeId:3});
   const attemptQuestions=await db.getAttemptQuestions(firstAttempt);
