@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#087b53"/><stop offset=".52" stop-color="#03432f"/><stop offset="1" stop-color="#01291f"/></linearGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="0.8" y2="1"><stop stop-color="#fff0a6"/><stop offset=".38" stop-color="#e9bd43"/><stop offset="1" stop-color="#a96b09"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#21a66e" stop-opacity=".65"/><stop offset="1" stop-color="#063d2d" stop-opacity="0"/></radialGradient>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+</defs>
+<rect width="512" height="512" rx="112" fill="url(#bg)"/>
+<circle cx="256" cy="190" r="205" fill="url(#glow)"/>
+<rect x="14" y="14" width="484" height="484" rx="100" fill="none" stroke="url(#gold)" stroke-width="10"/>
+<rect x="26" y="26" width="460" height="460" rx="90" fill="none" stroke="#f8e6a0" stroke-opacity=".28" stroke-width="2"/>
+<path d="M370 78l12 28 30 3-23 19 7 29-26-16-26 16 7-29-23-19 30-3z" fill="url(#gold)"/>
+<path d="M256 115l-82 39 82 42 82-42z" fill="url(#gold)" stroke="#fff0b3" stroke-width="3"/>
+<path d="M202 172v37q54 30 108 0v-37l-54 28z" fill="#d89d25"/>
+<path d="M174 154v56" stroke="#f9df82" stroke-width="6"/><circle cx="174" cy="214" r="8" fill="url(#gold)"/>
+<path d="M95 286q80-49 161 5 81-54 161-5l-7 82q-82-36-154 17-72-53-154-17z" fill="#fff7dc" stroke="url(#gold)" stroke-width="9" stroke-linejoin="round"/>
+<path d="M256 291v94M116 300q68-25 123 10M396 300q-68-25-123 10" fill="none" stroke="#d7a52e" stroke-width="5" stroke-linecap="round"/>
+<path d="M256 382q-70-49-145-17M256 382q70-49 145-17" fill="none" stroke="#f9e8ac" stroke-width="5"/>
+<text x="256" y="432" text-anchor="middle" direction="rtl" unicode-bidi="plaintext" font-family="Noto Naskh Arabic, Noto Sans Arabic, sans-serif" font-size="49" font-weight="800" fill="url(#gold)" stroke="#9b650d" stroke-width="1.2">التفوق</text>
+<text x="256" y="466" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="4" fill="#f8e8b4">AL-TAFAWUQ</text>
+</svg>
