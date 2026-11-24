@@ -29,7 +29,7 @@ export async function renderContentAdmin(container) {
   picker.multiple = true;
   picker.setAttribute('webkitdirectory', '');
   picker.setAttribute('directory', '');
-  picker.accept = '.json,.txt,.pdf,.jpg,.jpeg,.png,.webp,.mp3,.mp4';
+  picker.accept = '.json,.txt,.md,.html,.pdf,.jpg,.jpeg,.png,.webp,.mp3,.mp4';
   const pickerLabel = field('اختر مجلد الحزمة الذي يحتوي manifest.json والملفات التابعة له', picker);
   const selected = node('p', 'لم يتم اختيار مجلد بعد.', 'admin-muted');
   picker.addEventListener('change', () => {
@@ -48,6 +48,7 @@ export async function renderContentAdmin(container) {
       picker.value = '';
       selected.textContent = 'لم يتم اختيار مجلد بعد.';
       await refreshPackages();
+      await refreshAnswerKeys();
     } catch (error) {
       importStatus.textContent = error.message || 'تعذر استيراد الحزمة.';
     } finally {
@@ -103,6 +104,7 @@ export async function renderContentAdmin(container) {
           importStatus.textContent = 'تم اعتماد الحزمة ' + pkg.package_code + '.';
           notes.value = '';
           await refreshPackages();
+          await refreshAnswerKeys();
         } catch (error) { importStatus.textContent = error.message || 'تعذر اعتماد الحزمة.'; }
       }));
       actions.append(button('رفض الحزمة', 'admin-reject', async () => {
