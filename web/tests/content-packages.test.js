@@ -116,3 +116,12 @@ test('rejects package totals above 200 MiB before hashing',async()=>{
   const oversized={name:'large.bin',size:200*1024*1024+1,arrayBuffer:async()=>new ArrayBuffer(0)};
   await assert.rejects(()=>verifyPackageAssets(new Map([['large.bin',{bytes:oversized.size,sha256:'a'.repeat(64),media_type:'application/octet-stream'}]]),[oversized]),/200 ميجابايت/);
 });
+
+test('rejects unsupported lesson asset formats before import',()=>{
+  const manifest=good();manifest.assets[0].media_type='video/mp4';
+  assert.throws(()=>validateManifest(manifest),/نوع ملف الدرس أو المذكرة غير مدعوم/);
+});
+test('rejects a manifest that is not at the selected package root',()=>{
+  const nested={name:'manifest.json',webkitRelativePath:'root/nested/manifest.json'};
+  assert.equal(fileMap([nested]).has('manifest.json'),false);
+});
