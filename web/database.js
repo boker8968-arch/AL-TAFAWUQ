@@ -147,7 +147,7 @@ export async function getPublishedNotes({gradeId,trackId=null}={}){
   return subject&&subject.grade_id===Number(gradeId)&&
    (trackId===null?subject.track_id==null:(subject.track_id==null||subject.track_id===Number(trackId)))&&
    pkg?.review_status==='approved'&&mapping?.subject_id===subject.id&&mapping?.verification_status==='verified'&&release?.verification_status==='verified'&&release.grade_id===subject.grade_id;
- }).map(note=>({...note,subject_name:subjects.find(s=>s.id===note.subject_id)?.name_ar,category:'المذكرات'}));
+ }).map(note=>({...note,subject_name:subjects.find(s=>s.id===note.subject_id)?.name_ar,category:note.category==='الملخصات'?'الملخصات':'المذكرات'}));
 }
 
 export async function getPackageAsset(packageId,relativePath){
