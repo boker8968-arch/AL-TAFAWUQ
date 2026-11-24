@@ -30,7 +30,7 @@ export async function renderContentAdmin(container) {
   picker.setAttribute('webkitdirectory', '');
   picker.setAttribute('directory', '');
   picker.accept = '.json,.txt,.md,.html,.pdf,.jpg,.jpeg,.png,.webp,.mp3,.mp4';
-  const pickerLabel = field('اختر مجلد الحزمة الذي يحتوي manifest.json والملفات التابعة له', picker);
+  const pickerLabel = field('اختر مجلد الحزمة. إذا لم يدعم جهازك اختيار المجلد، اختر manifest.json وكل الملفات معاً بأسماء ملفات غير مكررة.', picker);
   const selected = node('p', 'لم يتم اختيار مجلد بعد.', 'admin-muted');
   picker.addEventListener('change', () => {
     selected.textContent = picker.files?.length
