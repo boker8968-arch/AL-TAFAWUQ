@@ -70,6 +70,18 @@ test('imports, reviews and publishes a supplemental package without trusting its
   assert.equal(notes[0].category,'المذكرات');
   assert.equal((await db.getPublishedExams({gradeId:3})).length,1);
   assert.equal((await db.getPackageReviewHistory(result.packageId)).length,1);
+  const question=(await db.getAll('questions'))[0];
+  const attemptQuestions=await db.getAttemptQuestions(await db.startExamAttempt((await db.getPublishedExams({gradeId:3}))[0].id,{gradeId:3}));
+  assert.equal('answer_json' in attemptQuestions[0],false);
+  assert.equal('answer_key_verified' in attemptQuestions[0],false);
+  await assert.rejects(()=>db.reviewAnswerKey({questionId:question.id,decision:'verified',reviewerLabel:'مراجع الاختبار'}),/مرجع الإجابة مطلوب/);
+  await db.reviewAnswerKey({questionId:question.id,decision:'verified',reviewerLabel:'مراجع الاختبار',sourceReference:'نموذج إجابة معتمد، صفحة 2'});
+  assert.equal((await db.getAll('questions'))[0].answer_key_verified,1);
+  const secondAttempt=await db.startExamAttempt((await db.getPublishedExams({gradeId:3}))[0].id,{gradeId:3});
+  await db.saveAttemptAnswer(secondAttempt,question.id,'A');
+  const score=await db.submitExamAttempt(secondAttempt);
+  assert.deepEqual({score:score.score,total:score.total_marks,graded:score.graded_questions},{score:2,total:2,graded:1});
+  assert.equal((await db.getAnswerKeyReviewHistory(question.id)).length,1);
   const asset=await db.getPackageAsset(result.packageId,'lessons/one.txt');
   assert.equal(await asset.blob.text(),'هذا نص درس تجريبي.');
 });
