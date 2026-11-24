@@ -38,3 +38,8 @@
 .exam-subject{background:linear-gradient(145deg,#fbfdfb,#f3f8f5);border-color:#dce9e1}
 .exam-subject .content-item{background:#fff;border-color:#dfeae3}
 .exam-subject .content-item:focus-visible{outline:3px solid #d6ad52;outline-offset:2px}
+
+.notes-filters{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
+.notes-filter{border:1px solid #d8e5dc;border-radius:999px;padding:9px 13px;background:#fff;color:#315b49;font:inherit;font-size:12px;font-weight:700}
+.notes-filter.active{background:#075b43;border-color:#075b43;color:#fff;box-shadow:0 3px 10px #075b4326}
+.notes-filter:focus-visible{outline:3px solid #d6ad52;outline-offset:2px}
