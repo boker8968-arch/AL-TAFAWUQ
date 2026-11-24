@@ -73,14 +73,14 @@ export async function renderContentAdmin(container) {
   const catalogHelp=node('p','أضف بيانات المواد وإصدار المنهج من مصادر موثوقة. تبدأ السجلات غير منشورة، ولا تظهر للطلاب حتى توثيق الإصدار وربط المادة كلٌّ على حدة.','admin-muted');
   const catalogForms=node('section','','admin-catalog-forms');
   const subjectForm=document.createElement('form');subjectForm.className='admin-catalog-form';
-  const subjectGrade=document.createElement('select');for(const [id,label] of [[1,'الأول الثانوي'],[2,'الثاني الثانوي'],[3,'الثالث الثانوي']])subjectGrade.add(new Option(label,String(id)));
+  const subjectGrade=document.createElement('select');subjectGrade.required=true;subjectGrade.add(new Option('اختر الصف',''));for(const [id,label] of [[1,'الأول الثانوي'],[2,'الثاني الثانوي'],[3,'الثالث الثانوي']])subjectGrade.add(new Option(label,String(id)));
   const subjectCode=document.createElement('input');subjectCode.required=true;subjectCode.maxLength=80;subjectCode.placeholder='رمز داخلي للمادة بالإنجليزية';
   const subjectName=document.createElement('input');subjectName.required=true;subjectName.maxLength=120;subjectName.placeholder='اسم المادة بالعربية';
   const subjectSave=document.createElement('button');subjectSave.type='submit';subjectSave.className='primary-action';subjectSave.textContent='إضافة مادة غير منشورة';
   subjectForm.append(node('h5','إضافة مادة'),field('الصف',subjectGrade),field('رمز المادة',subjectCode),field('اسم المادة',subjectName),subjectSave);
 
   const releaseForm=document.createElement('form');releaseForm.className='admin-catalog-form';
-  const releaseGrade=document.createElement('select');for(const [id,label] of [[1,'الأول الثانوي'],[2,'الثاني الثانوي'],[3,'الثالث الثانوي']])releaseGrade.add(new Option(label,String(id)));
+  const releaseGrade=document.createElement('select');releaseGrade.required=true;releaseGrade.add(new Option('اختر الصف',''));for(const [id,label] of [[1,'الأول الثانوي'],[2,'الثاني الثانوي'],[3,'الثالث الثانوي']])releaseGrade.add(new Option(label,String(id)));
   const academicYear=document.createElement('input');academicYear.required=true;academicYear.maxLength=30;academicYear.placeholder='السنة الدراسية كما وردت في المصدر';
   const editionCode=document.createElement('input');editionCode.required=true;editionCode.maxLength=80;editionCode.placeholder='رمز الطبعة بالإنجليزية';
   const editionLabel=document.createElement('input');editionLabel.required=true;editionLabel.maxLength=120;editionLabel.placeholder='اسم الطبعة';
@@ -91,7 +91,7 @@ export async function renderContentAdmin(container) {
   releaseForm.append(node('h5','إضافة إصدار منهج'),field('الصف',releaseGrade),field('السنة الدراسية',academicYear),field('رمز الطبعة',editionCode),field('اسم الطبعة',editionLabel),field('الجهة المصدرة',authority),field('اسم المصدر',sourceTitle),field('رابط المصدر',sourceUrl),releaseSave);
 
   const mappingForm=document.createElement('form');mappingForm.className='admin-catalog-form';
-  const releaseSelect=document.createElement('select'),subjectSelect=document.createElement('select');
+  const releaseSelect=document.createElement('select'),subjectSelect=document.createElement('select');releaseSelect.required=true;subjectSelect.required=true;
   const requirement=document.createElement('select');requirement.add(new Option('غير مصنف','unclassified'));requirement.add(new Option('إلزامي','mandatory'));requirement.add(new Option('اختياري','elective'));
   const mappingOrder=document.createElement('input');mappingOrder.type='number';mappingOrder.min='0';mappingOrder.step='1';mappingOrder.value='0';
   const mappingSource=document.createElement('input');mappingSource.required=true;mappingSource.maxLength=240;mappingSource.placeholder='مرجع وجود المادة في الإصدار';
