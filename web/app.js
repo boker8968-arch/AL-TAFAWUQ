@@ -1,6 +1,6 @@
 import {renderPdfAsset} from './pdf-viewer.js';
 import {groupCurriculumUnits,filterCurriculumEntries,getCurriculumUnitStats} from './curriculum-view.js';
-import {filterStudyNotes,groupStudyNotes} from './notes-view.js';
+import {filterStudyNotes,groupStudyNotes,countStudyNoteCategories} from './notes-view.js';
 import {filterPublishedExams,groupExamsBySubject} from './exams-view.js';
 import {CONTENT_ADMIN_ENABLED} from './app-config.js';
 import {renderContentAdmin} from './content-admin.js';
@@ -177,13 +177,17 @@ if(view==='notes'){
   if(!notes.length){showMessage('لا توجد مذكرات منشورة ومعتمدة لهذا الصف حالياً.');return;}
   hideMessage();contentList.hidden=false;
   const heading=document.createElement('h3');heading.textContent='المذكرات والملخصات';contentList.append(heading);
-  const searchWrap=document.createElement('label');searchWrap.className='curriculum-search';searchWrap.textContent='ابحث في المذكرات والملخصات';
-  const search=document.createElement('input');search.type='search';search.placeholder='اسم المذكرة أو المادة أو موضوعها...';search.setAttribute('aria-label','البحث في المذكرات');searchWrap.append(search);contentList.append(searchWrap);
-  const summary=document.createElement('p');summary.className='curriculum-summary';contentList.append(summary);
+  const searchWrap=document.createElement('label');searchWrap.className='curriculum-search';searchWrap.textContent='ابحث في المحتوى الدراسي';
+  const search=document.createElement('input');search.type='search';search.placeholder='اسم الملف أو المادة أو موضوعه...';search.setAttribute('aria-label','البحث في المذكرات والملخصات');searchWrap.append(search);contentList.append(searchWrap);
+  const counts=countStudyNoteCategories(notes),filters=document.createElement('div');filters.className='notes-filters';
+  const summary=document.createElement('p');summary.className='curriculum-summary';contentList.append(filters,summary);
   const results=document.createElement('div');results.className='notes-results';contentList.append(results);
-  function renderNotes(query=''){
+  let activeCategory='all';
+  const choices=[['all','الكل ('+counts.all+')'],['المذكرات','المذكرات ('+counts.notes+')'],['الملخصات','الملخصات ('+counts.summaries+')']];
+  for(const [value,label] of choices){const button=document.createElement('button');button.type='button';button.className='notes-filter'+(value===activeCategory?' active':'');button.textContent=label;button.setAttribute('aria-pressed',String(value===activeCategory));button.addEventListener('click',()=>{activeCategory=value;for(const item of filters.children){const selected=item.dataset.category===value;item.classList.toggle('active',selected);item.setAttribute('aria-pressed',String(selected));}renderNotes();});button.dataset.category=value;filters.append(button);}
+  function renderNotes(){
     results.replaceChildren();
-    const filtered=filterStudyNotes(notes,query),groups=groupStudyNotes(filtered);
+    const filtered=filterStudyNotes(notes,search.value,activeCategory),groups=groupStudyNotes(filtered);
     let count=0;
     for(const [subject,items] of groups){
       const section=document.createElement('section');section.className='subject-group curriculum-subject notes-subject';
@@ -191,22 +195,22 @@ if(view==='notes'){
       const meta=document.createElement('p');meta.className='curriculum-meta';meta.textContent=items.length+' ملف معتمد';section.append(meta);
       for(const note of items){
         count++;
-        const detail=note.summary_ar||note.category||'مذكرة معتمدة';
+        const detail=(note.category||'المذكرات')+' · '+(note.summary_ar||'ملف معتمد');
         addContentButton(note.title_ar,detail,async()=>{
           clearContent();hideMessage();contentList.hidden=false;
-          const back=document.createElement('button');back.className='back-link';back.textContent='← العودة إلى المذكرات';back.onclick=()=>showContent('notes');contentList.append(back);
+          const back=document.createElement('button');back.className='back-link';back.textContent='← العودة إلى المذكرات والملخصات';back.onclick=()=>showContent('notes');contentList.append(back);
           const title=document.createElement('h3');title.textContent=note.title_ar;contentList.append(title);
           const subjectLine=document.createElement('p');subjectLine.className='curriculum-meta';subjectLine.textContent=subject+' · '+(note.category||'المذكرات');contentList.append(subjectLine);
           if(note.summary_ar){const summaryHeading=document.createElement('h4');summaryHeading.textContent='نبذة عن الملف';contentList.append(summaryHeading);const summaryText=document.createElement('p');summaryText.textContent=note.summary_ar;contentList.append(summaryText);}
-          await displayPackageAsset(note.package_id,note.body_path,'قارئ المذكرات');
+          await displayPackageAsset(note.package_id,note.body_path,'قارئ المحتوى الدراسي');
         },section);
       }
       results.append(section);
     }
     summary.textContent='الملفات المعتمدة: '+count+' · المواد: '+groups.size;
-    if(!count){const empty=document.createElement('p');empty.className='curriculum-empty';empty.textContent='لا توجد مذكرات مطابقة لبحثك.';results.append(empty);}
+    if(!count){const empty=document.createElement('p');empty.className='curriculum-empty';empty.textContent='لا توجد ملفات مطابقة لهذا التصنيف أو البحث.';results.append(empty);}
   }
-  search.addEventListener('input',()=>renderNotes(search.value));renderNotes();return;
+  search.addEventListener('input',renderNotes);renderNotes();return;
 }
 if(view==='exams'){
   clearContent();
