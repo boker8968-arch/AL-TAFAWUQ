@@ -80,6 +80,8 @@ test('imports, reviews and publishes a supplemental package without trusting its
   const ungraded=await db.submitExamAttempt(firstAttempt);
   assert.deepEqual({score:ungraded.score,total:ungraded.total_marks,graded:ungraded.graded_questions},{score:0,total:0,graded:0});
   await assert.rejects(()=>db.reviewAnswerKey({questionId:question.id,decision:'verified',reviewerLabel:'مراجع الاختبار'}),/مرجع الإجابة مطلوب/);
+  await assert.rejects(async()=>{const raw=await db.getRecord('questions',question.id);await db.putRecord('questions',{...raw,answer_json:JSON.stringify('Z')});await db.reviewAnswerKey({questionId:question.id,decision:'verified',reviewerLabel:'مراجع الاختبار',sourceReference:'مرجع'});},/مفتاح الإجابة لا يطابق/);
+  await db.putRecord('questions',question);
   await db.reviewAnswerKey({questionId:question.id,decision:'verified',reviewerLabel:'مراجع الاختبار',sourceReference:'نموذج إجابة معتمد، صفحة 2'});
   assert.equal((await db.getAll('questions'))[0].answer_key_verified,1);
   const secondAttempt=await db.startExamAttempt((await db.getPublishedExams({gradeId:3}))[0].id,{gradeId:3});
