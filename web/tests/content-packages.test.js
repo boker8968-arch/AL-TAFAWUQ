@@ -15,6 +15,14 @@ const good = () => ({
 test('accepts a valid supplemental package manifest',()=>{
   assert.equal(validateManifest(good()).size,1);
 });
+test('accepts explicitly typed handouts and summaries',()=>{
+  const manifest=good();manifest.notes=[{code:'handout-1',title:'مذكرة',file:'lessons/one.txt',type:'note'},{code:'summary-1',title:'ملخص',file:'lessons/one.txt',type:'summary'}];
+  assert.equal(validateManifest(manifest).size,1);
+});
+test('rejects unknown study content types',()=>{
+  const manifest=good();manifest.notes=[{code:'note-1',title:'ملف',file:'lessons/one.txt',type:'video'}];
+  assert.throws(()=>validateManifest(manifest),/نوع المحتوى الدراسي غير صالح/);
+});
 test('rejects path traversal in lesson assets',()=>{
   const manifest=good();manifest.units[0].lessons[0].body_file='../secret.txt';
   assert.throws(()=>validateManifest(manifest),/مسار غير آمن/);
