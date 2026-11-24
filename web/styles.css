@@ -26,3 +26,9 @@
 .curriculum-progress-track{display:block;width:100%;height:6px;overflow:hidden;border-radius:99px;background:#e8eee9}
 .curriculum-progress-track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#087451,#d5ad4f)}
 .curriculum-empty{padding:18px;text-align:center;color:#718078;background:#fff;border:1px dashed #d6e3da;border-radius:13px}
+
+/* Study notes library */
+.notes-results{display:grid;gap:12px}
+.notes-subject{background:linear-gradient(145deg,#fbfdfb,#f4f8f4);border-color:#dfeae2}
+.notes-subject .content-item{background:#fff;border-color:#e2ebe4}
+.notes-subject .content-item:focus-visible{outline:3px solid #d6ad52;outline-offset:2px}
