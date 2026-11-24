@@ -49,8 +49,8 @@ test('imports, reviews and publishes a supplemental package without trusting its
   const releaseId=await db.createCurriculumRelease({gradeId:3,academicYear:'2026',editionCode:'test-edition',editionLabel:'طبعة اختبار',issuingAuthority:'جهة اختبارية',sourceTitle:'وثيقة منهج اختبار'});
   const mappingId=await db.createCurriculumReleaseSubject({releaseId,subjectId,requirementType:'mandatory',sourceReference:'وثيقة المنهج، صفحة 1'});
   await assert.rejects(()=>importer.importContentPackage(packageFiles()),/لا يوجد إصدار منهج وربط مادة موثّقان/);
-  await db.reviewCurriculumRecord({entityType:'release',entityId:releaseId,decision:'verified',reviewerLabel:'مراجع المنهج',sourceReference:'وثيقة المنهج، صفحة 1'});
   await assert.rejects(()=>db.reviewCurriculumRecord({entityType:'mapping',entityId:mappingId,decision:'verified',reviewerLabel:'مراجع المنهج',sourceReference:'وثيقة المنهج، صفحة 1'}),/يجب توثيق إصدار المنهج/);
+  await db.reviewCurriculumRecord({entityType:'release',entityId:releaseId,decision:'verified',reviewerLabel:'مراجع المنهج',sourceReference:'وثيقة المنهج، صفحة 1'});
   await db.reviewCurriculumRecord({entityType:'mapping',entityId:mappingId,decision:'verified',reviewerLabel:'مراجع المنهج',sourceReference:'جدول المواد، صفحة 2'});
   assert.equal((await db.getCurriculumReviewHistory('release',releaseId)).length,1);
   assert.equal((await db.getCurriculumReviewHistory('mapping',mappingId)).length,1);
