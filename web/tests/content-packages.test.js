@@ -125,3 +125,10 @@ test('rejects a manifest that is not at the selected package root',()=>{
   const nested={name:'manifest.json',webkitRelativePath:'root/nested/manifest.json'};
   assert.equal(fileMap([nested]).has('manifest.json'),false);
 });
+
+test('supports a flat multi-file selection using unique asset basenames',async()=>{
+  const file=new File(['hello'],'one.txt',{type:'text/plain'});
+  const sha=createHash('sha256').update('hello').digest('hex');
+  const verified=await verifyPackageAssets(new Map([['lessons/one.txt',{bytes:5,sha256:sha,media_type:'text/plain'}]]),[file]);
+  assert.equal(verified[0].file.name,'one.txt');
+});
