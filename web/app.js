@@ -49,7 +49,7 @@ async function displayPackageAsset(packageId,path,kind){
  }
 }
 function setActiveNavigation(view){const target=['lessons','notes'].includes(view)?'curriculum':view;document.querySelectorAll('.bottom [data-view]').forEach(button=>{const active=button.dataset.view===target;button.classList.toggle('active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});}
-function addContentButton(label,detail,onClick){const b=document.createElement('button');b.className='content-item';const strong=document.createElement('strong');strong.textContent=label;b.append(strong);if(detail){const small=document.createElement('small');small.textContent=detail;b.append(small);}if(onClick)b.addEventListener('click',onClick);contentList.append(b);}
+function addContentButton(label,detail,onClick,container=contentList){const b=document.createElement('button');b.className='content-item';const strong=document.createElement('strong');strong.textContent=label;b.append(strong);if(detail){const small=document.createElement('small');small.textContent=detail;b.append(small);}if(onClick)b.addEventListener('click',onClick);container.append(b);}
 async function showContent(view){if(view!=='content-admin')setActiveNavigation(view);if(view==='content-admin'){if(!CONTENT_ADMIN_ENABLED){showMessage('أدوات إدارة المحتوى غير مفعلة في هذا الإصدار.');return;}clearContent();hideMessage();contentList.hidden=false;await renderContentAdmin(contentList);return;}const p=await getStudentProfile();if(!p){showMessage('يرجى إعداد بيانات الطالب واختيار الصف أولاً.');await openSetup();return;}if(view==='curriculum'){
   clearContent();
   const units=await getApprovedUnits({gradeId:p.grade_id,trackId:p.track_id});
@@ -199,7 +199,7 @@ if(view==='notes'){
           const subjectLine=document.createElement('p');subjectLine.className='curriculum-meta';subjectLine.textContent=subject+' · '+(note.category||'المذكرات');contentList.append(subjectLine);
           if(note.summary_ar){const summaryHeading=document.createElement('h4');summaryHeading.textContent='نبذة عن الملف';contentList.append(summaryHeading);const summaryText=document.createElement('p');summaryText.textContent=note.summary_ar;contentList.append(summaryText);}
           await displayPackageAsset(note.package_id,note.body_path,'قارئ المذكرات');
-        });
+        },section);
       }
       results.append(section);
     }
@@ -234,7 +234,7 @@ if(view==='exams'){
         for(const exam of items)if(!active.some(attempt=>attempt.exam_id===exam.id)){
           count++;
           const year=exam.academic_year||exam.year||'السنة غير محددة';
-          addContentButton(exam.title_ar,year+' — '+exam.question_count+' سؤال'+(exam.duration_minutes?' — '+exam.duration_minutes+' دقيقة':''),()=>openExam(exam,p));
+          addContentButton(exam.title_ar,year+' — '+exam.question_count+' سؤال'+(exam.duration_minutes?' — '+exam.duration_minutes+' دقيقة':''),()=>openExam(exam,p),section);
         }
         results.append(section);
       }
