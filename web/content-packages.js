@@ -113,7 +113,7 @@ export async function verifyPackageAssets(assetSpecs, fileList) {
   const verifiedFiles = [];
   let packageBytes = 0;
   for (const [path, spec] of assetSpecs) {
-    const file = byPath.get(path);
+    const file = byPath.get(path) || byPath.get(path.split('/').pop());
     if (!file) fail('ملف مفقود من الحزمة: ' + path);
     if (file.size !== spec.bytes) fail('حجم الملف لا يطابق manifest: ' + path);
     packageBytes += file.size;
