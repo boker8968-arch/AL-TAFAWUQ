@@ -1,5 +1,5 @@
 // Browser-side schema mirrors the Flutter SQLite v6 domain and publication rules.
-const DB_NAME='al-tafawuq', DB_VERSION=7;
+const DB_NAME='al-tafawuq', DB_VERSION=8;
 const DEFINITIONS={
  grades:{keyPath:'id'},
  study_tracks:{keyPath:'id',indexes:[['grade_id','grade_id']]},
@@ -18,6 +18,7 @@ const DEFINITIONS={
  student_profiles:{keyPath:'id'},
  content_packages:{keyPath:'id',indexes:[['package_code','package_code',true],['review_status','review_status']]},
  content_package_reviews:{keyPath:'id',indexes:[['package_id','package_id']]},
+ answer_key_reviews:{keyPath:'id',indexes:[['question_id','question_id'],['package_id','package_id']]},
  package_assets:{keyPath:['package_id','path'],indexes:[['package_id','package_id']]},
  study_notes:{keyPath:'id',indexes:[['package_id','package_id'],['subject_id','subject_id']]},
  study_sessions:{keyPath:'id',indexes:[['started_at','started_at'],['subject_id','subject_id']]}
@@ -77,12 +78,18 @@ export async function saveAttemptAnswer(attemptId,questionId,answer){
 export async function submitExamAttempt(attemptId){
   const attempt=await getRecord('exam_attempts',Number(attemptId));
   if(!attempt||attempt.completed_at)throw new Error('تم تسليم هذه المحاولة مسبقاً.');
-  const [questions,answers]=await Promise.all([getAttemptQuestions(attemptId),getAll('attempt_answers')]);
+  const visibleQuestions=await getAttemptQuestions(attemptId);
+  const [answers,links,allQuestions]=await Promise.all([getAll('attempt_answers'),getAll('exam_questions'),getAll('questions')]);
+  const exam=await getRecord('exams',attempt.exam_id);
+  if(!exam)throw new Error('الامتحان غير موجود.');
+  const linked=links.filter(link=>link.exam_id===exam.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const questions=linked.map(link=>({link,question:allQuestions.find(q=>q.id===link.question_id&&q.package_id===exam.package_id)})).filter(x=>x.question);
   let score=0,total=0,graded=0;
-  for(const q of questions){
+  for(const item of questions){
+    const q=item.question,marks=Number(item.link.marks)||0;
     const canGrade=q.answer_key_verified===1&&q.answer_json!=null&&['multiple_choice','true_false'].includes(q.question_type);
     if(!canGrade)continue;
-    const marks=Number(q.marks)||0;total+=marks;graded++;
+    total+=marks;graded++;
     const answer=answers.find(x=>x.attempt_id===Number(attemptId)&&x.question_id===q.id);
     let correct=false;
     if(answer){try{correct=JSON.stringify(JSON.parse(answer.answer_json))===JSON.stringify(JSON.parse(q.answer_json));}catch{}}
@@ -93,9 +100,9 @@ export async function submitExamAttempt(attemptId){
   }
   const now=new Date().toISOString();
   await putRecord('exam_attempts',{...attempt,completed_at:now,score,total_marks:total});
-  const exam=await getRecord('exams',attempt.exam_id);
-  if(exam){const started=new Date(attempt.started_at),ended=new Date(now);await addRecord('study_sessions',{subject_id:exam.subject_id,session_type:'exam',started_at:started.toISOString(),ended_at:ended.toISOString(),duration_seconds:Math.max(0,Math.floor((ended-started)/1000)),completed_items:questions.length});}
-  return {attempt_id:Number(attemptId),score,total_marks:total,graded_questions:graded,total_questions:questions.length};
+  const started=new Date(attempt.started_at),ended=new Date(now);
+  await addRecord('study_sessions',{subject_id:exam.subject_id,session_type:'exam',started_at:started.toISOString(),ended_at:ended.toISOString(),duration_seconds:Math.max(0,Math.floor((ended-started)/1000)),completed_items:visibleQuestions.length});
+  return {attempt_id:Number(attemptId),score,total_marks:total,graded_questions:graded,total_questions:visibleQuestions.length};
 }
 export async function recordLessonStudySession(lessonId,startedAt,endedAt=new Date()){
  const [lessons,units,packages,mappings,releases,subjects]=await Promise.all(['lessons','curriculum_units','content_packages','curriculum_release_subjects','curriculum_releases','subjects'].map(getAll));
@@ -176,5 +183,45 @@ export async function reviewContentPackage({packageId,decision,reviewerLabel,not
   tx.oncomplete=()=>resolve(true);
   tx.onabort=()=>reject(failure||tx.error||new Error('تعذر حفظ قرار المراجعة.'));
   tx.onerror=()=>reject(failure||tx.error||new Error('تعذر حفظ قرار المراجعة.'));
+ });
+}
+
+export async function getQuestionsForAnswerReview(){
+ const [questions,packages,subjects]=await Promise.all(['questions','content_packages','subjects'].map(getAll));
+ return questions.filter(q=>q.answer_json!=null&&['multiple_choice','true_false'].includes(q.question_type))
+  .map(q=>{const pkg=packages.find(p=>p.id===q.package_id),subject=subjects.find(s=>s.id===q.subject_id);return {...q,package_title:pkg?.title||pkg?.package_code||'',package_status:pkg?.review_status,subject_name:subject?.name_ar||''};})
+  .filter(q=>q.package_status==='approved')
+  .sort((a,b)=>(a.package_title||'').localeCompare(b.package_title||'','ar')||a.id-b.id);
+}
+export async function getAnswerKeyReviewHistory(questionId){
+ return (await getAll('answer_key_reviews')).filter(row=>row.question_id===Number(questionId))
+  .sort((a,b)=>String(b.reviewed_at||'').localeCompare(String(a.reviewed_at||'')));
+}
+export async function reviewAnswerKey({questionId,decision,reviewerLabel,sourceReference=null,notes=null}){
+ if(!['verified','rejected'].includes(decision))throw new Error('قرار مراجعة مفتاح الإجابة غير صالح.');
+ const reviewer=String(reviewerLabel||'').trim(),source=String(sourceReference||'').trim(),comment=String(notes||'').trim()||null;
+ if(!reviewer)throw new Error('اسم المراجع مطلوب.');
+ if(decision==='verified'&&!source)throw new Error('مرجع الإجابة مطلوب قبل اعتماد المفتاح.');
+ if(decision==='rejected'&&!comment)throw new Error('سبب رفض مفتاح الإجابة مطلوب.');
+ const db=await openDb();
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction(['questions','content_packages','answer_key_reviews'],'readwrite');
+  const qStore=tx.objectStore('questions'),request=qStore.get(Number(questionId));
+  let failure=null;
+  request.onsuccess=()=>{
+   const q=request.result;
+   if(!q||q.answer_json==null||!['multiple_choice','true_false'].includes(q.question_type)){failure=new Error('السؤال غير موجود أو لا يدعم التصحيح الآلي.');tx.abort();return;}
+   const packageRequest=tx.objectStore('content_packages').get(q.package_id);
+   packageRequest.onsuccess=()=>{
+    const pkg=packageRequest.result;
+    if(pkg?.review_status!=='approved'){failure=new Error('يجب اعتماد حزمة المحتوى أولاً.');tx.abort();return;}
+    const now=new Date().toISOString(),verified=decision==='verified'?1:0;
+    qStore.put({...q,answer_key_verified:verified,answer_key_reviewed_at:now});
+    tx.objectStore('answer_key_reviews').add({question_id:q.id,package_id:q.package_id,decision,reviewer_label:reviewer,source_reference:source||null,notes:comment,reviewed_at:now});
+   };
+  };
+  tx.oncomplete=()=>resolve(true);
+  tx.onabort=()=>reject(failure||tx.error||new Error('تعذر حفظ مراجعة مفتاح الإجابة.'));
+  tx.onerror=()=>reject(failure||tx.error||new Error('تعذر حفظ مراجعة مفتاح الإجابة.'));
  });
 }
