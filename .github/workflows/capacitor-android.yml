@@ -34,6 +34,12 @@ jobs:
         run: npm run build
         env:
           CONTENT_ADMIN_ENABLED: 'true'
+      - name: Verify offline web bundle
+        run: |
+          test -s www/index.html
+          test -s www/vendor/pdfjs/pdf.worker.mjs
+          test -s www/pdf-assets.json
+          grep -q 'CONTENT_ADMIN_ENABLED = true' www/app-config.js
       - name: Generate Android wrapper
         run: npx cap add android
       - name: Sync Capacitor
@@ -41,6 +47,19 @@ jobs:
       - name: Build debug APK
         working-directory: web/android
         run: chmod +x gradlew && ./gradlew assembleDebug
+      - name: Verify APK archive
+        run: unzip -t android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Install and launch on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: |
+            adb install -r web/android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell monkey -p sd.bokerpharma.altafawuq 1
+            adb shell 'for i in $(seq 1 20); do pidof sd.bokerpharma.altafawuq && exit 0; sleep 1; done; exit 1'
       - uses: actions/upload-artifact@v4
         with:
           name: al-tafawuq-capacitor-debug-apk
