@@ -32,3 +32,9 @@
 .notes-subject{background:linear-gradient(145deg,#fbfdfb,#f4f8f4);border-color:#dfeae2}
 .notes-subject .content-item{background:#fff;border-color:#e2ebe4}
 .notes-subject .content-item:focus-visible{outline:3px solid #d6ad52;outline-offset:2px}
+
+/* Past exams library */
+.exam-results{display:grid;gap:12px}
+.exam-subject{background:linear-gradient(145deg,#fbfdfb,#f3f8f5);border-color:#dce9e1}
+.exam-subject .content-item{background:#fff;border-color:#dfeae3}
+.exam-subject .content-item:focus-visible{outline:3px solid #d6ad52;outline-offset:2px}
