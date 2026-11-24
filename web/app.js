@@ -48,7 +48,7 @@ async function displayPackageAsset(packageId,path,kind){
 }
 function setActiveNavigation(view){const target=['lessons','notes'].includes(view)?'curriculum':view;document.querySelectorAll('.bottom [data-view]').forEach(button=>{const active=button.dataset.view===target;button.classList.toggle('active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});}
 function addContentButton(label,detail,onClick){const b=document.createElement('button');b.className='content-item';const strong=document.createElement('strong');strong.textContent=label;b.append(strong);if(detail){const small=document.createElement('small');small.textContent=detail;b.append(small);}if(onClick)b.addEventListener('click',onClick);contentList.append(b);}
-async function showContent(view){if(view!=='content-admin')setActiveNavigation(view);if(view==='content-admin'){if(!CONTENT_ADMIN_ENABLED){showMessage('أدوات إدارة المحتوى غير مفعلة في هذا الإصدار.');return;}clearContent();hideMessage();contentList.hidden=false;await renderContentAdmin(contentList);return;}const p=await getStudentProfile();if(!p){showMessage('يرجى إعداد بيانات الطالب واختيار الصف أولاً.');await openSetup();return;}if(view==='curriculum'||view==='lessons'){
+async function showContent(view){if(view!=='content-admin')setActiveNavigation(view);if(view==='content-admin'){if(!CONTENT_ADMIN_ENABLED){showMessage('أدوات إدارة المحتوى غير مفعلة في هذا الإصدار.');return;}clearContent();hideMessage();contentList.hidden=false;await renderContentAdmin(contentList);return;}const p=await getStudentProfile();if(!p){showMessage('يرجى إعداد بيانات الطالب واختيار الصف أولاً.');await openSetup();return;}if(view==='curriculum'){
   clearContent();
   const units=await getApprovedUnits({gradeId:p.grade_id,trackId:p.track_id});
   if(!units.length){showMessage('لا يوجد محتوى منشور ومعتمد لهذا الصف حتى الآن. ستظهر المواد بعد استيراد حزمة موثقة واعتمادها.');return;}
@@ -121,7 +121,55 @@ async function showContent(view){if(view!=='content-admin')setActiveNavigation(v
   search.addEventListener('input',()=>renderCurriculum(search.value));
   renderCurriculum();
   return;
-}if(view==='notes'){
+}
+if(view==='lessons'){
+  clearContent();
+  const units=await getApprovedUnits({gradeId:p.grade_id,trackId:p.track_id});
+  const lessonGroups=await Promise.all(units.map(async unit=>({unit,lessons:await getApprovedLessons(unit.id)})));
+  const available=lessonGroups.flatMap(({unit,lessons})=>lessons.map(lesson=>({unit,lesson})));
+  if(!available.length){showMessage('لا توجد شروحات منشورة ومعتمدة لهذا الصف حتى الآن. ستظهر الشروحات بعد اعتماد محتوى موثق.');return;}
+  hideMessage();contentList.hidden=false;
+  const progressRows=await getAll('study_progress');
+  const progressByLesson=new Map(progressRows.map(row=>[row.lesson_id,row]));
+  const searchWrap=document.createElement('label');searchWrap.className='curriculum-search';searchWrap.textContent='ابحث في الشروحات';
+  const search=document.createElement('input');search.type='search';search.placeholder='اسم المادة أو الوحدة أو الدرس...';search.setAttribute('aria-label','البحث في الشروحات');searchWrap.append(search);contentList.append(searchWrap);
+  const summary=document.createElement('p');summary.className='curriculum-summary';contentList.append(summary);
+  const results=document.createElement('div');results.className='curriculum-results';contentList.append(results);
+  function renderLessons(query=''){
+    results.replaceChildren();
+    const needle=String(query||'').trim().toLocaleLowerCase('ar');
+    let count=0,completed=0;
+    for(const {unit,lessons} of lessonGroups){
+      const matches=lessons.filter(lesson=>!needle||[unit.subject_name,unit.title_ar,lesson.title_ar,lesson.summary_ar].some(value=>String(value||'').toLocaleLowerCase('ar').includes(needle)));
+      if(!matches.length)continue;
+      const section=document.createElement('section');section.className='subject-group curriculum-subject';
+      const heading=document.createElement('h3');heading.textContent=unit.subject_name||'المادة';section.append(heading);
+      const unitHeading=document.createElement('p');unitHeading.className='curriculum-meta';unitHeading.textContent=unit.title_ar;section.append(unitHeading);
+      for(const lesson of matches){
+        count++;
+        const done=progressByLesson.get(lesson.id)?.status==='completed';if(done)completed++;
+        const detail=done?'مكتمل':lesson.summary_ar||'شرح معتمد';
+        addContentButton(lesson.title_ar,detail,async()=>{
+          const startedAt=new Date();clearContent();hideMessage();contentList.hidden=false;
+          const back=document.createElement('button');back.className='back-link';back.textContent='← العودة إلى الشروحات';back.onclick=()=>showContent('lessons');contentList.append(back);
+          const subjectTitle=document.createElement('p');subjectTitle.className='curriculum-meta';subjectTitle.textContent=(unit.subject_name||'المادة')+' · '+unit.title_ar;contentList.append(subjectTitle);
+          const title=document.createElement('h3');title.textContent=lesson.title_ar;contentList.append(title);
+          if(lesson.summary_ar){const summaryHeading=document.createElement('h4');summaryHeading.textContent='ملخص الشرح';contentList.append(summaryHeading);const summaryText=document.createElement('p');summaryText.textContent=lesson.summary_ar;contentList.append(summaryText);}
+          if(lesson.body_path){const bodyHeading=document.createElement('h4');bodyHeading.textContent='الشرح الكامل';contentList.append(bodyHeading);await displayPackageAsset(lesson.package_id,lesson.body_path,'قسم الشروحات');}
+          else{const note=document.createElement('p');note.textContent='لا يتوفر ملف شرح تفصيلي لهذا الدرس حالياً؛ المعروض هو الملخص المعتمد فقط.';contentList.append(note);}
+          const complete=document.createElement('button');complete.className='primary-action';complete.textContent=done?'تم إكمال هذا الدرس':'إكمال الشرح وحفظ التقدم';complete.disabled=done;
+          complete.addEventListener('click',async()=>{try{await saveLessonProgress(lesson.id,100);await recordLessonStudySession(lesson.id,startedAt,new Date());complete.disabled=true;complete.textContent='تم إكمال هذا الدرس';showMessage('تم حفظ تقدمك في هذا الدرس على الجهاز.');}catch(error){showMessage(error.message||'تعذر حفظ التقدم.');}});
+          contentList.append(complete);
+        });
+      }
+      results.append(section);
+    }
+    summary.textContent='الدروس المعروضة: '+count+' · المكتملة: '+completed;
+    if(!count){const empty=document.createElement('p');empty.className='curriculum-empty';empty.textContent='لا توجد شروحات مطابقة لبحثك.';results.append(empty);}
+  }
+  search.addEventListener('input',()=>renderLessons(search.value));renderLessons();return;
+}
+if(view==='notes'){
   clearContent();
   const notes=await getPublishedNotes({gradeId:p.grade_id,trackId:p.track_id});
   if(!notes.length){showMessage('لا توجد مذكرات منشورة ومعتمدة لهذا الصف حالياً.');return;}
