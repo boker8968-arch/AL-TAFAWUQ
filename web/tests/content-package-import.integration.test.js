@@ -44,12 +44,16 @@ function packageFiles(m=manifest()) {
 }
 
 test('imports, reviews and publishes a supplemental package without trusting its answer key', async () => {
-  const database=await db.openDb();
-  const tx=database.transaction(['subjects','curriculum_releases','curriculum_release_subjects'],'readwrite');
-  tx.objectStore('subjects').put({id:1,code:'math',name_ar:'الرياضيات',grade_id:3,track_id:null,is_active:1});
-  tx.objectStore('curriculum_releases').put({id:1,grade_id:3,academic_year:'2026',edition_code:'test-edition',track_id:null,verification_status:'verified'});
-  tx.objectStore('curriculum_release_subjects').put({id:1,release_id:1,subject_id:1,verification_status:'verified'});
-  await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});
+  await db.openDb();
+  const subjectId=await db.createCurriculumSubject({gradeId:3,code:'math',nameAr:'الرياضيات'});
+  const releaseId=await db.createCurriculumRelease({gradeId:3,academicYear:'2026',editionCode:'test-edition',editionLabel:'طبعة اختبار',issuingAuthority:'جهة اختبارية',sourceTitle:'وثيقة منهج اختبار'});
+  const mappingId=await db.createCurriculumReleaseSubject({releaseId,subjectId,requirementType:'mandatory',sourceReference:'وثيقة المنهج، صفحة 1'});
+  await assert.rejects(()=>importer.importContentPackage(packageFiles()),/لا يوجد إصدار منهج وربط مادة موثّقان/);
+  await db.reviewCurriculumRecord({entityType:'release',entityId:releaseId,decision:'verified',reviewerLabel:'مراجع المنهج',sourceReference:'وثيقة المنهج، صفحة 1'});
+  await assert.rejects(()=>db.reviewCurriculumRecord({entityType:'mapping',entityId:mappingId,decision:'verified',reviewerLabel:'مراجع المنهج',sourceReference:'وثيقة المنهج، صفحة 1'}),/يجب توثيق إصدار المنهج/);
+  await db.reviewCurriculumRecord({entityType:'mapping',entityId:mappingId,decision:'verified',reviewerLabel:'مراجع المنهج',sourceReference:'جدول المواد، صفحة 2'});
+  assert.equal((await db.getCurriculumReviewHistory('release',releaseId)).length,1);
+  assert.equal((await db.getCurriculumReviewHistory('mapping',mappingId)).length,1);
 
   const result=await importer.importContentPackage(packageFiles());
   assert.equal(result.status,'pending_review');
