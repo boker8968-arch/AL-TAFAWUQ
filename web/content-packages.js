@@ -48,6 +48,7 @@ export function validateManifest(m) {
     if (!note || typeof note !== 'object' || Array.isArray(note)) fail('كل مذكرة يجب أن تكون كائناً صالحاً.');
     requiredString(note.code,'note.code'); requiredString(note.title,'note.title');
     if (note.summary != null && typeof note.summary !== 'string') fail('ملخص المذكرة يجب أن يكون نصاً.');
+    if (note.type != null && !['note','summary'].includes(note.type)) fail('نوع المحتوى الدراسي غير صالح.');
     if (noteCodes.has(note.code)) fail('رمز مذكرة مكرر: ' + note.code); noteCodes.add(note.code);
     refs.push(safePath(note.file,'note.file'));
   }
@@ -212,7 +213,7 @@ export async function importContentPackage(fileList) {
     }
     for (const note of (manifest.notes || [])) tx.objectStore('study_notes').add({
       subject_id:subject.id,package_id:packageId,content_code:note.code,title_ar:note.title,
-      summary_ar:note.summary||null,body_path:safePath(note.file,'note.file'),category:'المذكرات'
+      summary_ar:note.summary||null,body_path:safePath(note.file,'note.file'),category:note.type==='summary'?'الملخصات':'المذكرات'
     });
     for (const item of verifiedFiles) tx.objectStore('package_assets').add({
       package_id:packageId,path:item.path,blob:item.file,media_type:item.media_type
