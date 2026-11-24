@@ -128,6 +128,7 @@ export async function renderContentAdmin(container) {
       const card=node('article','','admin-package');
       card.append(node('h5','إصدار: '+item.edition_label+' — '+item.academic_year));
       card.append(node('p','الصف: '+item.grade_id+' | الرمز: '+item.edition_code+' | الجهة: '+item.issuing_authority+' | المصدر: '+item.source_title));
+      const history=await getCurriculumReviewHistory('release',item.id);if(history.length)card.append(node('p','سجل المراجعة: '+history.length,'admin-muted'));
       const source=document.createElement('input');source.required=true;source.maxLength=240;source.placeholder='مرجع التحقق من الإصدار';
       const actions=node('div','','admin-actions');
       actions.append(button('توثيق الإصدار','admin-approve',async()=>{if(!reviewer.value.trim()||!source.value.trim()){importStatus.textContent='اسم المراجع ومرجع المصدر مطلوبان.';return;}if(!confirm('هل تحققت من بيانات هذا الإصدار ومصدره؟'))return;try{await reviewCurriculumRecord({entityType:'release',entityId:item.id,decision:'verified',reviewerLabel:reviewer.value,sourceReference:source.value,notes:notes.value});importStatus.textContent='تم توثيق إصدار المنهج.';await refreshCatalog();}catch(error){importStatus.textContent=error.message||'تعذر توثيق الإصدار.';}}));
@@ -139,6 +140,7 @@ export async function renderContentAdmin(container) {
       const card=node('article','','admin-package');
       card.append(node('h5','ربط مادة: '+(subject?.name_ar||item.subject_id)));
       card.append(node('p','الإصدار: '+(release?.edition_label||item.release_id)+' — '+(release?.academic_year||'')));
+      const history=await getCurriculumReviewHistory('mapping',item.id);if(history.length)card.append(node('p','سجل المراجعة: '+history.length,'admin-muted'));
       const source=document.createElement('input');source.required=true;source.maxLength=240;source.placeholder='مرجع ظهور المادة في المنهج';
       const actions=node('div','','admin-actions');
       actions.append(button('توثيق الربط','admin-approve',async()=>{if(!reviewer.value.trim()||!source.value.trim()){importStatus.textContent='اسم المراجع ومرجع المصدر مطلوبان.';return;}if(!confirm('هل تحققت من وجود المادة ضمن هذا الإصدار؟'))return;try{await reviewCurriculumRecord({entityType:'mapping',entityId:item.id,decision:'verified',reviewerLabel:reviewer.value,sourceReference:source.value,notes:notes.value});importStatus.textContent='تم توثيق ربط المادة.';await refreshCatalog();}catch(error){importStatus.textContent=error.message||'تعذر توثيق الربط.';}}));
