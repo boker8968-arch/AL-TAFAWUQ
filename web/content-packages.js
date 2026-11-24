@@ -60,7 +60,11 @@ export function validateManifest(m) {
     if (!Number.isSafeInteger(asset.bytes) || asset.bytes < 0 || asset.bytes > MAX_ASSET_BYTES || !SHA256.test(asset.sha256 || '')) fail('بيانات حجم أو بصمة الملف غير صالحة أو تجاوز الملف الحد المسموح: ' + path);
     assets.set(path, asset);
   }
-  for (const path of refs) if (!assets.has(path)) fail('الملف المشار إليه غير مدرج ضمن assets: ' + path);
+  for (const path of refs) {
+    const spec=assets.get(path);
+    if (!spec) fail('الملف المشار إليه غير مدرج ضمن assets: ' + path);
+    if (!(spec.media_type.startsWith('text/') || spec.media_type==='application/pdf')) fail('نوع ملف الدرس أو المذكرة غير مدعوم في هذا الإصدار: ' + path);
+  }
   for (const exam of (m.exams || [])) {
     if (!exam || typeof exam !== 'object' || Array.isArray(exam)) fail('كل امتحان يجب أن يكون كائناً صالحاً.');
     requiredString(exam.code,'exam.code'); requiredString(exam.title,'exam.title');
@@ -127,7 +131,7 @@ function req(request) {
 export async function importContentPackage(fileList) {
   const files = [...fileList];
   const byPath = fileMap(files);
-  const manifestFile = byPath.get('manifest.json') || files.find(f => f.name === 'manifest.json');
+  const manifestFile = byPath.get('manifest.json');
   if (!manifestFile) fail('لم يتم العثور على manifest.json داخل المجلد المختار.');
   if (manifestFile.size > 2 * 1024 * 1024) fail('حجم manifest.json يتجاوز الحد المسموح (2 ميجابايت).');
   let manifest;
