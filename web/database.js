@@ -1,5 +1,5 @@
 // Browser-side schema mirrors the Flutter SQLite v6 domain and publication rules.
-const DB_NAME='al-tafawuq', DB_VERSION=8;
+const DB_NAME='al-tafawuq', DB_VERSION=9;
 const DEFINITIONS={
  grades:{keyPath:'id'},
  study_tracks:{keyPath:'id',indexes:[['grade_id','grade_id']]},
@@ -19,6 +19,7 @@ const DEFINITIONS={
  content_packages:{keyPath:'id',indexes:[['package_code','package_code',true],['review_status','review_status']]},
  content_package_reviews:{keyPath:'id',indexes:[['package_id','package_id']]},
  answer_key_reviews:{keyPath:'id',indexes:[['question_id','question_id'],['package_id','package_id']]},
+ curriculum_review_history:{keyPath:'id',indexes:[['entity_type','entity_type'],['entity_id','entity_id']]},
  package_assets:{keyPath:['package_id','path'],indexes:[['package_id','package_id']]},
  study_notes:{keyPath:'id',indexes:[['package_id','package_id'],['subject_id','subject_id']]},
  study_sessions:{keyPath:'id',indexes:[['started_at','started_at'],['subject_id','subject_id']]}
@@ -230,4 +231,83 @@ export async function reviewAnswerKey({questionId,decision,reviewerLabel,sourceR
   tx.onabort=()=>reject(failure||tx.error||new Error('تعذر حفظ مراجعة مفتاح الإجابة.'));
   tx.onerror=()=>reject(failure||tx.error||new Error('تعذر حفظ مراجعة مفتاح الإجابة.'));
  });
+}
+
+export async function getCurriculumCatalog(){
+ const [subjects,releases,mappings,grades]=await Promise.all(['subjects','curriculum_releases','curriculum_release_subjects','grades'].map(getAll));
+ return {grades,subjects,releases,mappings};
+}
+export async function createCurriculumSubject({gradeId,code,nameAr,descriptionAr=null,sortOrder=0,trackId=null}){
+ const grade=await getRecord('grades',Number(gradeId));
+ if(!grade||grade.is_active!==1)throw new Error('الصف الدراسي غير صالح.');
+ const cleanCode=String(code||'').trim(),name=String(nameAr||'').trim();
+ if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(cleanCode))throw new Error('رمز المادة غير صالح.');
+ if(!name)throw new Error('اسم المادة مطلوب.');
+ if(!Number.isInteger(Number(sortOrder)))throw new Error('ترتيب المادة غير صالح.');
+ if(trackId!==null){const track=await getRecord('study_tracks',Number(trackId));if(!track||track.grade_id!==Number(gradeId)||track.is_active!==1)throw new Error('المسار لا يتبع الصف المحدد.');}
+ const subjects=await getAll('subjects');
+ if(subjects.some(s=>s.grade_id===Number(gradeId)&&s.track_id===(trackId===null?null:Number(trackId))&&s.code===cleanCode))throw new Error('رمز المادة موجود مسبقاً لهذا الصف والمسار.');
+ return addRecord('subjects',{grade_id:Number(gradeId),track_id:trackId===null?null:Number(trackId),code:cleanCode,name_ar:name,description_ar:String(descriptionAr||'').trim()||null,sort_order:Number(sortOrder),is_active:1});
+}
+export async function createCurriculumRelease({gradeId,trackId=null,academicYear,editionCode,editionLabel,issuingAuthority,sourceTitle,sourceUrl=null,publishedAt=null,notes=null}){
+ const grade=await getRecord('grades',Number(gradeId));
+ if(!grade||grade.is_active!==1)throw new Error('الصف الدراسي غير صالح.');
+ if(trackId!==null){const track=await getRecord('study_tracks',Number(trackId));if(!track||track.grade_id!==Number(gradeId)||track.is_active!==1)throw new Error('المسار لا يتبع الصف المحدد.');}
+ const year=String(academicYear||'').trim(),code=String(editionCode||'').trim(),label=String(editionLabel||'').trim();
+ const authority=String(issuingAuthority||'').trim(),source=String(sourceTitle||'').trim();
+ if(!year||!code||!label||!authority||!source)throw new Error('السنة ورمز الطبعة واسمها والجهة المصدرة واسم المصدر مطلوبة.');
+ if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(code))throw new Error('رمز الطبعة غير صالح.');
+ const releases=await getAll('curriculum_releases');
+ if(releases.some(r=>r.grade_id===Number(gradeId)&&r.academic_year===year&&r.edition_code===code))throw new Error('إصدار المنهج موجود مسبقاً لهذا الصف.');
+ return addRecord('curriculum_releases',{grade_id:Number(gradeId),track_id:trackId===null?null:Number(trackId),academic_year:year,edition_code:code,edition_label:label,issuing_authority:authority,source_title:source,source_url:String(sourceUrl||'').trim()||null,published_at:publishedAt||null,verification_status:'pending',notes:String(notes||'').trim()||null,created_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+}
+export async function createCurriculumReleaseSubject({releaseId,subjectId,requirementType='unclassified',selectionGroup=null,sortOrder=0,sourceReference}){
+ const [release,subject,mappings]=await Promise.all([getRecord('curriculum_releases',Number(releaseId)),getRecord('subjects',Number(subjectId)),getAll('curriculum_release_subjects')]);
+ if(!release||!subject)throw new Error('إصدار المنهج أو المادة غير موجود.');
+ if(release.grade_id!==subject.grade_id||(release.track_id!==null&&subject.track_id!==null&&release.track_id!==subject.track_id))throw new Error('المادة وإصدار المنهج لا يتبعان الصف أو المسار نفسه.');
+ if(!['mandatory','elective','unclassified'].includes(requirementType))throw new Error('نوع المقرر غير صالح.');
+ if(!String(sourceReference||'').trim())throw new Error('مرجع ربط المادة بالمقرر مطلوب.');
+ if(mappings.some(m=>m.release_id===Number(releaseId)&&m.subject_id===Number(subjectId)))throw new Error('المادة مرتبطة بهذا الإصدار مسبقاً.');
+ return addRecord('curriculum_release_subjects',{release_id:Number(releaseId),subject_id:Number(subjectId),requirement_type:requirementType,selection_group:String(selectionGroup||'').trim()||null,sort_order:Number(sortOrder)||0,verification_status:'pending',source_reference:String(sourceReference).trim(),notes:null});
+}
+export async function reviewCurriculumRecord({entityType,entityId,decision,reviewerLabel,sourceReference,notes=null}){
+ if(!['release','mapping'].includes(entityType)||!['verified','rejected'].includes(decision))throw new Error('بيانات مراجعة المنهج غير صالحة.');
+ const reviewer=String(reviewerLabel||'').trim(),source=String(sourceReference||'').trim(),comment=String(notes||'').trim()||null;
+ if(!reviewer||!source)throw new Error('اسم المراجع ومرجع المصدر مطلوبان.');
+ const storeName=entityType==='release'?'curriculum_releases':'curriculum_release_subjects';
+ const db=await openDb();
+ return new Promise((resolve,reject)=>{
+  const names=[storeName,'curriculum_review_history','subjects','curriculum_releases'];
+  const tx=db.transaction(names,'readwrite');
+  const store=tx.objectStore(storeName),request=store.get(Number(entityId));
+  let failure=null;
+  request.onsuccess=()=>{
+   const row=request.result;
+   if(!row){failure=new Error('سجل المنهج غير موجود.');tx.abort();return;}
+   if(row.verification_status!=='pending'){failure=new Error('لا يمكن مراجعة سجل ليس قيد المراجعة.');tx.abort();return;}
+   const save=()=>{
+    const now=new Date().toISOString();
+    store.put({...row,verification_status:decision,updated_at:now,verification_reference:source,verification_reviewer:reviewer,verification_notes:comment});
+    tx.objectStore('curriculum_review_history').add({entity_type:entityType,entity_id:Number(entityId),decision,reviewer_label:reviewer,source_reference:source,notes:comment,reviewed_at:now});
+   };
+   if(entityType==='release'&&decision==='verified'){
+    if(!String(row.issuing_authority||'').trim()||!String(row.source_title||'').trim()){failure=new Error('بيانات الجهة المصدرة والمصدر مطلوبة قبل التوثيق.');tx.abort();return;}
+    save();
+   }else if(entityType==='mapping'&&decision==='verified'){
+    const releaseRequest=tx.objectStore('curriculum_releases').get(row.release_id);
+    const subjectRequest=tx.objectStore('subjects').get(row.subject_id);
+    let releaseReady=false,subjectReady=false,releaseValue,subjectValue;
+    const maybeSave=()=>{if(!releaseReady||!subjectReady)return;if(releaseValue?.verification_status!=='verified'||!subjectValue||releaseValue.grade_id!==subjectValue.grade_id||(releaseValue.track_id!==null&&subjectValue.track_id!==null&&releaseValue.track_id!==subjectValue.track_id)){failure=new Error('يجب توثيق إصدار المنهج والتأكد من توافق الصف والمسار قبل توثيق ربط المادة.');tx.abort();return;}save();};
+    releaseRequest.onsuccess=()=>{releaseValue=releaseRequest.result;releaseReady=true;maybeSave();};
+    subjectRequest.onsuccess=()=>{subjectValue=subjectRequest.result;subjectReady=true;maybeSave();};
+   }else save();
+  };
+  tx.oncomplete=()=>resolve(true);
+  tx.onabort=()=>reject(failure||tx.error||new Error('تعذر حفظ مراجعة المنهج.'));
+  tx.onerror=()=>reject(failure||tx.error||new Error('تعذر حفظ مراجعة المنهج.'));
+ });
+}
+export async function getCurriculumReviewHistory(entityType,entityId){
+ return (await getAll('curriculum_review_history')).filter(row=>row.entity_type===entityType&&row.entity_id===Number(entityId))
+  .sort((a,b)=>String(b.reviewed_at||'').localeCompare(String(a.reviewed_at||'')));
 }
