@@ -33,13 +33,14 @@ jobs:
       - name: Build offline web app
         run: npm run build
         env:
-          CONTENT_ADMIN_ENABLED: 'true'
+          CONTENT_ADMIN_ENABLED: 'false'
       - name: Verify offline web bundle
         run: |
           test -s www/index.html
           test -s www/vendor/pdfjs/pdf.worker.mjs
           test -s www/pdf-assets.json
-          grep -q 'CONTENT_ADMIN_ENABLED = true' www/app-config.js
+          grep -q 'CONTENT_ADMIN_ENABLED = false' www/app-config.js
+          ! grep -q 'content-admin-open' www/index.html
       - name: Package standalone HTML version
         run: |
           cd www
