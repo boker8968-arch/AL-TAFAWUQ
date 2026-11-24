@@ -248,6 +248,7 @@ if(view==='exams'){
     search.addEventListener('input',()=>renderExams(search.value));renderExams();
   }
 }
+}
 async function openExam(exam,profile,resumeAttemptId=null){
   clearContent();hideMessage();contentList.hidden=false;
   const heading=document.createElement('h3');heading.textContent=exam.title_ar;contentList.append(heading);
