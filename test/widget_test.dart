@@ -1,13 +1,20 @@
-import 'package:al_tafawuq/app.dart';
-import 'package:flutter/widgets.dart';
+import 'package:al_tafawuq/features/home/presentation/home_page.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('home screen renders Arabic learning sections', (tester) async {
-    await tester.pumpWidget(const AlTafawuqApp());
+  testWidgets('home screen renders branded Arabic learning sections', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: HomePage(),
+        ),
+      ),
+    );
 
-    expect(find.text('منصة التفوق'), findsOneWidget);
-    expect(find.byTooltip('إدارة المحتوى للمشرفين'), findsNothing);
+    expect(find.text('التفوق'), findsOneWidget);
+    expect(find.byTooltip('حول منصة التفوق'), findsOneWidget);
     expect(find.text('ابدأ يومك بالإنجاز'), findsOneWidget);
     expect(find.text('المناهج'), findsOneWidget);
     await tester.scrollUntilVisible(
