@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Check JavaScript syntax
-        run: node --check app.js && node --check notes-view.js && node --check curriculum-view.js && node --check database.js && node --check content-packages.js && node --check content-admin.js && node --check app-config.js && node --check pdf-viewer.js
+        run: node --check app.js && node --check notes-view.js && node --check exams-view.js && node --check curriculum-view.js && node --check database.js && node --check content-packages.js && node --check content-admin.js && node --check app-config.js && node --check pdf-viewer.js
       - name: Test content package validation
         run: npm test
       - name: Build offline web app
