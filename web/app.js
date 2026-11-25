@@ -1,7 +1,7 @@
 import {renderPdfAsset} from './pdf-viewer.js';
 import {groupCurriculumUnits,filterCurriculumEntries,getCurriculumUnitStats} from './curriculum-view.js';
 import {filterStudyNotes,groupStudyNotes,countStudyNoteCategories} from './notes-view.js';
-import {filterPublishedExams,groupExamsBySubject} from './exams-view.js';
+import {filterPublishedExams,groupExamsBySubject,getExamFilterOptions} from './exams-view.js';
 import {CONTENT_ADMIN_ENABLED} from './app-config.js';
 import {renderContentAdmin} from './content-admin.js';
 import {getStudentProfile,saveStudentProfile,hasLocalCredential,createLocalCredential,verifyLocalCredential,getTracksForGrade,getApprovedUnits,getApprovedLessons,getPublishedExams,getAll,saveLessonProgress,startExamAttempt,getExamAttempt,getAttemptAnswers,getActiveExamAttempts,getAttemptQuestions,saveAttemptAnswer,submitExamAttempt,getAttemptHistory,getPublishedNotes,getStudentDashboard,recordLessonStudySession,getPackageAsset} from './database.js';
@@ -225,11 +225,15 @@ if(view==='exams'){
     const h=document.createElement('h3');h.textContent='الامتحانات السابقة والتدريبية';contentList.append(h);
     const searchWrap=document.createElement('label');searchWrap.className='curriculum-search';searchWrap.textContent='ابحث باسم الامتحان أو المادة أو السنة';
     const search=document.createElement('input');search.type='search';search.placeholder='مثلاً: الرياضيات أو 2024';search.setAttribute('aria-label','البحث في الامتحانات');searchWrap.append(search);contentList.append(searchWrap);
+    const filterOptions=getExamFilterOptions(exams),filterBar=document.createElement('div');filterBar.className='exam-filters';
+    const yearFilter=document.createElement('select');yearFilter.setAttribute('aria-label','تصفية حسب السنة الدراسية');yearFilter.innerHTML='<option value="">كل السنوات</option>'+filterOptions.years.map(year=>'<option value="'+year.replaceAll('&','&amp;').replaceAll('"','&quot;')+'">'+year+'</option>').join('');
+    const typeFilter=document.createElement('select');typeFilter.setAttribute('aria-label','تصفية حسب نوع الامتحان');const typeLabels={previous:'امتحانات سابقة',practice:'امتحانات تدريبية',mock:'امتحانات تجريبية'};typeFilter.innerHTML='<option value="">كل الأنواع</option>'+filterOptions.types.map(type=>'<option value="'+type.replaceAll('&','&amp;').replaceAll('"','&quot;')+'">'+(typeLabels[type]||type)+'</option>').join('');
+    filterBar.append(yearFilter,typeFilter);contentList.append(filterBar);
     const summary=document.createElement('p');summary.className='curriculum-summary';contentList.append(summary);
     const results=document.createElement('div');results.className='exam-results';contentList.append(results);
     function renderExams(query=''){
       results.replaceChildren();
-      const filtered=filterPublishedExams(exams,query),groups=groupExamsBySubject(filtered);
+      const filtered=filterPublishedExams(exams,query,{year:yearFilter.value,type:typeFilter.value}),groups=groupExamsBySubject(filtered);
       let count=0;
       for(const [subject,items] of groups){
         const section=document.createElement('section');section.className='curriculum-subject exam-subject';
@@ -245,7 +249,7 @@ if(view==='exams'){
       summary.textContent='الامتحانات المطابقة: '+count+' · المواد: '+groups.size;
       if(!filtered.length){const empty=document.createElement('p');empty.className='curriculum-empty';empty.textContent='لا توجد امتحانات مطابقة لبحثك.';results.append(empty);}
     }
-    search.addEventListener('input',()=>renderExams(search.value));renderExams();
+    search.addEventListener('input',()=>renderExams(search.value));yearFilter.addEventListener('change',()=>renderExams(search.value));typeFilter.addEventListener('change',()=>renderExams(search.value));renderExams();
   }
 }
 }
