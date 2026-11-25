@@ -74,6 +74,7 @@ class HomePage extends StatelessWidget {
         onDestinationSelected: (index) {
           if (index == 1) _openLibrary(context);
           if (index == 2) _openExams(context);
+          if (index == 3) _openStudentSetup(context);
         },
         destinations: const [
           NavigationDestination(
