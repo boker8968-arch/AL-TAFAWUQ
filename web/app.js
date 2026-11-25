@@ -2,9 +2,10 @@ import {renderPdfAsset} from './pdf-viewer.js';
 import {groupCurriculumUnits,filterCurriculumEntries,getCurriculumUnitStats} from './curriculum-view.js';
 import {filterStudyNotes,groupStudyNotes,countStudyNoteCategories} from './notes-view.js';
 import {filterPublishedExams,groupExamsBySubject,getExamFilterOptions} from './exams-view.js';
+import {filterPublishedBankQuestions,groupBankQuestionsBySubject,getQuestionBankFilterOptions,canShowVerifiedAnswer} from './question-bank-view.js';
 import {CONTENT_ADMIN_ENABLED} from './app-config.js';
 import {renderContentAdmin} from './content-admin.js';
-import {getStudentProfile,saveStudentProfile,hasLocalCredential,createLocalCredential,verifyLocalCredential,getTracksForGrade,getApprovedUnits,getApprovedLessons,getPublishedExams,getAll,saveLessonProgress,startExamAttempt,getExamAttempt,getAttemptAnswers,getActiveExamAttempts,getAttemptQuestions,saveAttemptAnswer,submitExamAttempt,getAttemptHistory,getPublishedNotes,getStudentDashboard,recordLessonStudySession,getPackageAsset} from './database.js';
+import {getStudentProfile,saveStudentProfile,hasLocalCredential,createLocalCredential,verifyLocalCredential,getTracksForGrade,getApprovedUnits,getApprovedLessons,getPublishedExams,getPublishedQuestionBank,getAll,saveLessonProgress,startExamAttempt,getExamAttempt,getAttemptAnswers,getActiveExamAttempts,getAttemptQuestions,saveAttemptAnswer,submitExamAttempt,getAttemptHistory,getPublishedNotes,getStudentDashboard,recordLessonStudySession,getPackageAsset} from './database.js';
 const dialog=document.querySelector('#setup'),form=document.querySelector('#profile-form'),trackField=document.querySelector('#track-field'),trackSelect=form.elements.track;
 const grades=[{id:1,name:'الصف الأول الثانوي'},{id:2,name:'الصف الثاني الثانوي'},{id:3,name:'الصف الثالث الثانوي'}];
 const authScreen=document.querySelector('#auth-screen'),authRegister=document.querySelector('#auth-register'),authLogin=document.querySelector('#auth-login'),authTitle=document.querySelector('#auth-title'),authDescription=document.querySelector('#auth-description'),authMessage=document.querySelector('#auth-message');
@@ -254,6 +255,63 @@ if(view==='exams'){
     search.addEventListener('input',()=>renderExams(search.value));yearFilter.addEventListener('change',()=>renderExams(search.value));typeFilter.addEventListener('change',()=>renderExams(search.value));renderExams();
   }
 }
+
+if(view==='question-bank'){
+  clearContent();
+  const questions=await getPublishedQuestionBank({gradeId:p.grade_id,trackId:p.track_id});
+  if(!questions.length){showMessage('لا توجد أسئلة منشورة ومعتمدة في بنك الأسئلة لهذا الصف حتى الآن. ستظهر الأسئلة بعد اعتماد حزم موثقة وربطها بالمنهج.');return;}
+  hideMessage();contentList.hidden=false;
+  const heading=document.createElement('h3');heading.textContent='بنك الأسئلة والتدريب';contentList.append(heading);
+  const intro=document.createElement('p');intro.className='curriculum-meta';intro.textContent='تدرّب على الأسئلة المنشورة من الحزم المعتمدة. لا يظهر مفتاح الإجابة إلا بعد توثيقه ومراجعته.';contentList.append(intro);
+  const searchWrap=document.createElement('label');searchWrap.className='curriculum-search';searchWrap.textContent='ابحث في بنك الأسئلة';
+  const search=document.createElement('input');search.type='search';search.placeholder='نص السؤال أو المادة أو الدرس...';search.setAttribute('aria-label','البحث في بنك الأسئلة');searchWrap.append(search);contentList.append(searchWrap);
+  const options=getQuestionBankFilterOptions(questions),filters=document.createElement('div');filters.className='exam-filters';
+  const makeFilter=(label,values)=>{const select=document.createElement('select');select.setAttribute('aria-label',label);const all=document.createElement('option');all.value='';all.textContent=label;select.append(all);for(const value of values){const option=document.createElement('option');option.value=value;option.textContent=value;select.append(option);}return select;};
+  const subjectFilter=makeFilter('كل المواد',options.subjects),typeNames={multiple_choice:'اختيار من متعدد',true_false:'صح أو خطأ',short_answer:'إجابة قصيرة'};
+  const typeFilter=makeFilter('كل أنواع الأسئلة',options.types.map(type=>typeNames[type]||type));
+  for(const option of typeFilter.options)if(option.value){const pair=options.types.find(type=>(typeNames[type]||type)===option.value);option.value=pair||option.value;}
+  const difficultyFilter=makeFilter('كل مستويات الصعوبة',options.difficulties);
+  filters.append(subjectFilter,typeFilter,difficultyFilter);contentList.append(filters);
+  const summary=document.createElement('p');summary.className='curriculum-summary';contentList.append(summary);
+  const results=document.createElement('div');results.className='question-bank-results';contentList.append(results);
+  function renderBank(){
+    results.replaceChildren();
+    const filtered=filterPublishedBankQuestions(questions,search.value,{subject:subjectFilter.value,type:typeFilter.value,difficulty:difficultyFilter.value});
+    const groups=groupBankQuestionsBySubject(filtered);let count=0;
+    for(const [subject,items] of groups){
+      const section=document.createElement('section');section.className='subject-group curriculum-subject';
+      const title=document.createElement('h3');title.textContent=subject;section.append(title);
+      for(const question of items){
+        count++;
+        const card=document.createElement('article');card.className='question-bank-card';
+        const prompt=document.createElement('h4');prompt.textContent=question.prompt_ar;card.append(prompt);
+        const meta=document.createElement('p');meta.className='curriculum-meta';meta.textContent=(typeNames[question.question_type]||'سؤال')+(question.lesson_title?' · '+question.lesson_title:'')+(question.academic_year?' · '+question.academic_year:'');card.append(meta);
+        let choices=[];try{choices=question.options_json?JSON.parse(question.options_json):[];}catch{}
+        if(question.question_type==='true_false'&&!choices.length)choices=[{value:true,label:'صح'},{value:false,label:'خطأ'}];
+        if(Array.isArray(choices)&&choices.length){const list=document.createElement('ul');list.className='question-options';for(const choice of choices){const item=document.createElement('li');item.textContent=choice&&typeof choice==='object'?(choice.label??choice.text??String(choice.value)):String(choice);list.append(item);}card.append(list);}
+        if(canShowVerifiedAnswer(question)&&question.verified_answer_json!=null){
+          const reveal=document.createElement('button');reveal.type='button';reveal.className='back-link';reveal.textContent='إظهار الإجابة الموثقة';
+          const answer=document.createElement('p');answer.hidden=true;answer.className='verified-answer';
+          let answerValue=question.verified_answer_json;try{answerValue=JSON.parse(answerValue);}catch{}
+          if(typeof answerValue==='boolean')answerValue=answerValue?'صح':'خطأ';
+          else if(typeof answerValue==='object'&&answerValue!==null)answerValue=answerValue.label??answerValue.text??JSON.stringify(answerValue);
+          answer.textContent='الإجابة الموثقة: '+String(answerValue);
+          reveal.addEventListener('click',()=>{answer.hidden=!answer.hidden;reveal.textContent=answer.hidden?'إظهار الإجابة الموثقة':'إخفاء الإجابة';});
+          card.append(reveal,answer);
+        }else{
+          const warning=document.createElement('p');warning.className='curriculum-meta';warning.textContent='مفتاح الإجابة غير موثّق بعد؛ لن يتم عرض إجابة أو تصحيح هذا السؤال.';card.append(warning);
+        }
+        const source=document.createElement('small');source.textContent='المصدر: '+question.source_exam_title;card.append(source);
+        section.append(card);
+      }
+      results.append(section);
+    }
+    summary.textContent='الأسئلة المتاحة: '+count+' · المواد: '+groups.size;
+    if(!count){const empty=document.createElement('p');empty.className='curriculum-empty';empty.textContent='لا توجد أسئلة مطابقة لخيارات البحث.';results.append(empty);}
+  }
+  search.addEventListener('input',renderBank);subjectFilter.addEventListener('change',renderBank);typeFilter.addEventListener('change',renderBank);difficultyFilter.addEventListener('change',renderBank);renderBank();return;
+}
+
 }
 async function openExam(exam,profile,resumeAttemptId=null){
   clearContent();hideMessage();contentList.hidden=false;
