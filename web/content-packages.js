@@ -70,6 +70,7 @@ export function validateManifest(m) {
     if (!exam || typeof exam !== 'object' || Array.isArray(exam)) fail('كل امتحان يجب أن يكون كائناً صالحاً.');
     requiredString(exam.code,'exam.code'); requiredString(exam.title,'exam.title');
     if (exam.exam_type != null && typeof exam.exam_type !== 'string') fail('نوع الامتحان غير صالح.');
+    if (exam.academic_year != null && typeof exam.academic_year !== 'string' && typeof exam.academic_year !== 'number') fail('السنة الدراسية للامتحان غير صالحة.');
     if (exam.duration_minutes != null && (!Number.isInteger(exam.duration_minutes) || exam.duration_minutes < 0)) fail('مدة الامتحان غير صالحة.');
     if (exams.has(exam.code)) fail('رمز امتحان مكرر: ' + exam.code); exams.add(exam.code);
     if (!Array.isArray(exam.questions) || !exam.questions.length) fail('كل امتحان يجب أن يحتوي أسئلة.');
@@ -173,7 +174,7 @@ export async function importContentPackage(fileList) {
       for (const exam of (manifest.exams || [])) {
         const examReq = tx.objectStore('exams').add({
           subject_id:subject.id,package_id:packageId,content_code:exam.code,title_ar:exam.title,
-          exam_type:exam.exam_type || 'practice',duration_minutes:exam.duration_minutes || null,source_label:'supplemental'
+          exam_type:exam.exam_type || 'practice',academic_year:String(exam.academic_year ?? manifest.academic_year),duration_minutes:exam.duration_minutes || null,source_label:'supplemental'
         });
         examReq.onsuccess = () => {
           exam.questions.forEach((q,index) => {
