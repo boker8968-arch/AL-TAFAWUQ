@@ -341,7 +341,7 @@ export async function getPublishedQuestionBank({gradeId,trackId=null}={}){
   result.push({
    id:question.id,question_type:question.question_type,prompt_ar:question.prompt_ar,
    options_json:question.options_json||null,difficulty:question.difficulty??null,
-   answer_key_verified:question.answer_key_verified===1?1:0,
+   answer_key_verified:question.answer_key_verified===1?1:0,\n   verified_answer_json:question.answer_key_verified===1&&question.answer_json!=null?question.answer_json:null,
    subject_name:exam.subject_name,source_exam_title:exam.title_ar,
    academic_year:exam.academic_year||null,lesson_title:lesson?.title_ar||null,
    options_count:Array.isArray(options)?options.length:0
