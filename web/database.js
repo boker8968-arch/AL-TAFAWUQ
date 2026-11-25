@@ -129,7 +129,7 @@ export async function getStudentDashboard({gradeId,trackId=null}={}){
  const lessonIds=new Set(lessonRows.map(l=>l.id)),completed=progress.filter(p=>lessonIds.has(p.lesson_id)&&p.status==='completed').length;
  const subjectIds=new Set(units.map(u=>u.subject_id));
  const seconds=sessions.filter(s=>subjectIds.has(s.subject_id)).reduce((n,s)=>n+(Number(s.duration_seconds)||0),0);
- const today=new Date().toISOString().slice(0,10),todayStudySeconds=sessions.filter(s=>subjectIds.has(s.subject_id)&&String(s.started_at||'').slice(0,10)===today).reduce((n,s)=>n+(Number(s.duration_seconds)||0),0);
+ const now=new Date(),today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0'),todayStudySeconds=sessions.filter(s=>subjectIds.has(s.subject_id)&&String(s.started_at||'').slice(0,10)===today).reduce((n,s)=>n+(Number(s.duration_seconds)||0),0);
  const visibleExamIds=new Set((await getPublishedExams({gradeId,trackId})).map(e=>e.id));
  const completedAttempts=attempts.filter(a=>visibleExamIds.has(a.exam_id)&&a.completed_at).length;
  return {units:units.length,lessons:lessonRows.length,completedLessons:completed,progressPercent:lessonRows.length?Math.round(completed/lessonRows.length*100):0,studySeconds:seconds,todayStudySeconds,completedExams:completedAttempts};
