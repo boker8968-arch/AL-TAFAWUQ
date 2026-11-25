@@ -322,3 +322,30 @@ export async function getCurriculumReviewHistory(entityType,entityId){
  return (await getAll('curriculum_review_history')).filter(row=>row.entity_type===entityType&&row.entity_id===Number(entityId))
   .sort((a,b)=>String(b.reviewed_at||'').localeCompare(String(a.reviewed_at||'')));
 }
+export async function getPublishedQuestionBank({gradeId,trackId=null}={}){
+ const exams=await getPublishedExams({gradeId,trackId});
+ if(!exams.length)return [];
+ const [questions,links,lessons]=await Promise.all(['questions','exam_questions','lessons'].map(getAll));
+ const examById=new Map(exams.map(exam=>[exam.id,exam]));
+ const lessonByCode=new Map(lessons.map(lesson=>[lesson.content_code,lesson]));
+ const seen=new Set(),result=[];
+ for(const link of links){
+  const exam=examById.get(link.exam_id);
+  if(!exam||seen.has(link.question_id))continue;
+  const question=questions.find(row=>row.id===link.question_id&&row.package_id===exam.package_id);
+  if(!question)continue;
+  seen.add(question.id);
+  let options=[];
+  try{options=question.options_json?JSON.parse(question.options_json):[];}catch{}
+  const lesson=question.lesson_code?lessonByCode.get(question.lesson_code):null;
+  result.push({
+   id:question.id,question_type:question.question_type,prompt_ar:question.prompt_ar,
+   options_json:question.options_json||null,difficulty:question.difficulty??null,
+   answer_key_verified:question.answer_key_verified===1?1:0,
+   subject_name:exam.subject_name,source_exam_title:exam.title_ar,
+   academic_year:exam.academic_year||null,lesson_title:lesson?.title_ar||null,
+   options_count:Array.isArray(options)?options.length:0
+  });
+ }
+ return result;
+}
