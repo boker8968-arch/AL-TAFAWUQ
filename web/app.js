@@ -226,8 +226,10 @@ if(view==='exams'){
     const searchWrap=document.createElement('label');searchWrap.className='curriculum-search';searchWrap.textContent='ابحث باسم الامتحان أو المادة أو السنة';
     const search=document.createElement('input');search.type='search';search.placeholder='مثلاً: الرياضيات أو 2024';search.setAttribute('aria-label','البحث في الامتحانات');searchWrap.append(search);contentList.append(searchWrap);
     const filterOptions=getExamFilterOptions(exams),filterBar=document.createElement('div');filterBar.className='exam-filters';
-    const yearFilter=document.createElement('select');yearFilter.setAttribute('aria-label','تصفية حسب السنة الدراسية');yearFilter.innerHTML='<option value="">كل السنوات</option>'+filterOptions.years.map(year=>'<option value="'+year.replaceAll('&','&amp;').replaceAll('"','&quot;')+'">'+year+'</option>').join('');
-    const typeFilter=document.createElement('select');typeFilter.setAttribute('aria-label','تصفية حسب نوع الامتحان');const typeLabels={previous:'امتحانات سابقة',practice:'امتحانات تدريبية',mock:'امتحانات تجريبية'};typeFilter.innerHTML='<option value="">كل الأنواع</option>'+filterOptions.types.map(type=>'<option value="'+type.replaceAll('&','&amp;').replaceAll('"','&quot;')+'">'+(typeLabels[type]||type)+'</option>').join('');
+    const makeFilter=(label,items)=>{const select=document.createElement('select');select.setAttribute('aria-label',label);const all=document.createElement('option');all.value='';all.textContent=label;select.append(all);for(const item of items){const option=document.createElement('option');option.value=item.value;option.textContent=item.label;select.append(option);}return select;};
+    const yearFilter=makeFilter('كل السنوات',filterOptions.years.map(year=>({value:year,label:year})));
+    const typeLabels={previous:'امتحانات سابقة',practice:'امتحانات تدريبية',mock:'امتحانات تجريبية'};
+    const typeFilter=makeFilter('كل أنواع الامتحانات',filterOptions.types.map(type=>({value:type,label:typeLabels[type]||type})));
     filterBar.append(yearFilter,typeFilter);contentList.append(filterBar);
     const summary=document.createElement('p');summary.className='curriculum-summary';contentList.append(summary);
     const results=document.createElement('div');results.className='exam-results';contentList.append(results);
