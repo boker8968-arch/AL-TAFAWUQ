@@ -7,6 +7,7 @@ void main() {
     await tester.pumpWidget(const AlTafawuqApp());
 
     expect(find.text('منصة التفوق'), findsOneWidget);
+    expect(find.byTooltip('إدارة المحتوى للمشرفين'), findsNothing);
     expect(find.text('ابدأ يومك بالإنجاز'), findsOneWidget);
     expect(find.text('المناهج'), findsOneWidget);
     await tester.scrollUntilVisible(
