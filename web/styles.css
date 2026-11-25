@@ -43,3 +43,8 @@
 .notes-filter{border:1px solid #d8e5dc;border-radius:999px;padding:9px 13px;background:#fff;color:#315b49;font:inherit;font-size:12px;font-weight:700}
 .notes-filter.active{background:#075b43;border-color:#075b43;color:#fff;box-shadow:0 3px 10px #075b4326}
 .notes-filter:focus-visible{outline:3px solid #d6ad52;outline-offset:2px}
+
+.exam-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:10px 0 14px}
+.exam-filters select{min-width:0;width:100%;padding:11px 12px;border:1px solid #d8e5dc;border-radius:12px;background:#fff;color:#315b49;font:inherit;font-size:13px}
+.exam-filters select:focus-visible{outline:3px solid #d6ad52;outline-offset:2px}
+@media(max-width:360px){.exam-filters{grid-template-columns:1fr}}
