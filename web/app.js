@@ -24,7 +24,18 @@ document.querySelector('#setup-open').addEventListener('click',openSetup);
 document.querySelector('#logout').addEventListener('click',()=>{dialog.close();lockApp('login');});
 form.elements.grade.addEventListener('change',async()=>{if(form.elements.grade.value)await loadTracks(form.elements.grade.value);else trackField.hidden=true;});
 form.addEventListener('submit',async e=>{if(e.submitter?.id!=='save-profile')return;e.preventDefault();hideMessage();try{await saveStudentProfile({name:form.elements.name.value,gradeId:form.elements.grade.value,trackId:trackSelect.value||null});dialog.close();await renderProfile();showMessage('تم حفظ بيانات الطالب على هذا الجهاز.');}catch(error){showMessage(error.message||'تعذر حفظ البيانات.');}});
-async function renderProfile(){const p=await getStudentProfile(),el=document.querySelector('#progress');if(!p){el.textContent='سيظهر تقدمك هنا بعد إعداد بيانات الطالب.';return;}const grade=grades.find(g=>g.id===p.grade_id);const stats=await getStudentDashboard({gradeId:p.grade_id,trackId:p.track_id});const hours=Math.floor(stats.studySeconds/3600),minutes=Math.floor((stats.studySeconds%3600)/60);el.textContent='مرحباً '+(p.display_name||'بك')+' — '+(grade?.name||'الصف الدراسي')+'.\nالوحدات المنشورة: '+stats.units+' | الدروس: '+stats.completedLessons+' من '+stats.lessons+' مكتملة ('+stats.progressPercent+'%).\nجلسات الدراسة: '+hours+' ساعة و'+minutes+' دقيقة | محاولات الامتحان المكتملة: '+stats.completedExams+'.';}
+function renderStudyGoal(stats){
+ const input=document.querySelector('#daily-study-goal'),save=document.querySelector('#save-study-goal'),summary=document.querySelector('#study-plan-summary'),fill=document.querySelector('#study-goal-fill'),status=document.querySelector('#study-goal-status');
+ if(!input||!save||!summary||!fill||!status)return;
+ const key='altafawu_daily_goal_v1',stored=Number(localStorage.getItem(key)),goal=Number.isFinite(stored)&&stored>=10&&stored<=600?stored:60;
+ input.value=String(goal);
+ const minutes=Math.floor((stats.todayStudySeconds||0)/60),percent=Math.min(100,Math.round(minutes/goal*100));
+ summary.textContent='هدف اليوم: '+goal+' دقيقة. أنجزت حتى الآن '+minutes+' دقيقة.';
+ fill.style.width=percent+'%';
+ status.textContent=percent>=100?'أحسنت! حققت هدفك اليومي.':'تبقى '+Math.max(0,goal-minutes)+' دقيقة لإكمال هدف اليوم ('+percent+'%).';
+ save.onclick=()=>{const value=Number(input.value);if(!Number.isInteger(value)||value<10||value>600){showMessage('اختر هدفاً بين 10 و600 دقيقة.');return;}localStorage.setItem(key,String(value));renderStudyGoal(stats);showMessage('تم حفظ هدف المذاكرة على هذا الجهاز.');};
+}
+async function renderProfile(){const p=await getStudentProfile(),el=document.querySelector('#progress');if(!p){el.textContent='سيظهر تقدمك هنا بعد إعداد بيانات الطالب.';return;}const grade=grades.find(g=>g.id===p.grade_id);const stats=await getStudentDashboard({gradeId:p.grade_id,trackId:p.track_id});renderStudyGoal(stats);const hours=Math.floor(stats.studySeconds/3600),minutes=Math.floor((stats.studySeconds%3600)/60);el.textContent='مرحباً '+(p.display_name||'بك')+' — '+(grade?.name||'الصف الدراسي')+'.\nالوحدات المنشورة: '+stats.units+' | الدروس: '+stats.completedLessons+' من '+stats.lessons+' مكتملة ('+stats.progressPercent+'%).\nجلسات الدراسة: '+hours+' ساعة و'+minutes+' دقيقة | محاولات الامتحان المكتملة: '+stats.completedExams+'.'}
 const views={curriculum:'المناهج',lessons:'الشروحات',notes:'المذكرات والملخصات',exams:'الامتحانات'};
 const contentList=document.querySelector('#content-list');let examTimer=null;let pdfCleanup=null;let contentGeneration=0;
 function stopExamTimer(){if(examTimer!==null){clearInterval(examTimer);examTimer=null;}}
