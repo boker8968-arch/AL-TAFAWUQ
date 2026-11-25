@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'core/theme/app_theme.dart';
+
 import 'features/home/presentation/home_page.dart';
 import 'features/student/data/student_repository.dart';
 import 'features/student/presentation/student_setup_page.dart';
