@@ -56,3 +56,13 @@
 .question-bank-card .question-options{padding-inline-start:22px;color:#315b49;line-height:1.9}
 .question-bank-card .verified-answer{background:#edf7f0;border-right:3px solid #16845f;border-radius:8px;padding:10px;color:#14543d;font-weight:700}
 .question-bank-card>small{display:block;color:#78877f;margin-top:10px}
+
+/* Daily study planner */
+.study-plan label{display:block;font-weight:700;color:#315b49;margin:12px 0 7px}
+.study-plan-controls{display:flex;gap:9px;align-items:center}
+.study-plan-controls input{min-width:0;flex:1;padding:11px;border:1px solid #d8e5dc;border-radius:12px;font:inherit}
+.study-plan-controls .primary{white-space:nowrap;padding:11px 15px}
+.study-goal-track{height:10px;background:#e7eee9;border-radius:99px;overflow:hidden;margin:16px 0 8px}
+.study-goal-track span{display:block;width:0;height:100%;background:linear-gradient(90deg,#087451,#d4aa4c);border-radius:99px;transition:width .25s ease}
+.study-plan small{color:#718078}
+@media(max-width:360px){.study-plan-controls{flex-direction:column;align-items:stretch}}
