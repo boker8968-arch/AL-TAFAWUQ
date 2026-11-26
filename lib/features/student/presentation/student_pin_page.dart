@@ -23,6 +23,9 @@ class _StudentPinPageState extends State<StudentPinPage> {
   final _confirmController = TextEditingController();
   final _currentPinController = TextEditingController();
   bool _hasExistingPin = false;
+  bool _pinStateLoaded = false;
+  bool _busy = false;
+  String? _error;
 
   @override
   void initState() {
@@ -32,10 +35,13 @@ class _StudentPinPageState extends State<StudentPinPage> {
 
   Future<void> _loadPinState() async {
     final enabled = await _pinService.isEnabled();
-    if (mounted) setState(() => _hasExistingPin = enabled);
+    if (mounted) {
+      setState(() {
+        _hasExistingPin = enabled;
+        _pinStateLoaded = true;
+      });
+    }
   }
-  bool _busy = false;
-  String? _error;
 
   Future<void> _submit() async {
     final pin = _pinController.text;
@@ -174,14 +180,14 @@ class _StudentPinPageState extends State<StudentPinPage> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: _busy ? null : _submit,
+                      onPressed: (_busy || (settings && !_pinStateLoaded)) ? null : _submit,
                       child: _busy
                           ? const SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(settings ? 'تفعيل الحماية' : 'متابعة'),
+                          : Text(settings ? (_hasExistingPin ? 'تغيير رمز PIN' : 'تفعيل الحماية') : 'متابعة'),
                     ),
                   ),
                 ],
