@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/branding/tafwauq_brand.dart';
 import '../../about/presentation/about_page.dart';
 import '../../student/presentation/student_setup_page.dart';
+import '../../student/presentation/student_pin_page.dart';
 import '../../library/presentation/learning_library_page.dart';
 import '../../exams/presentation/exams_page.dart';
 
@@ -22,6 +23,17 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  Future<void> _openPinSettings(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => StudentPinPage(
+          settingsMode: true,
+          onUnlocked: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+  }
+
   Future<void> _openStudentSetup(BuildContext context) async {
     await Navigator.of(context).push(
       MaterialPageRoute<bool>(
@@ -36,6 +48,11 @@ class HomePage extends StatelessWidget {
       appBar: AppBar(
         title: const TafawuqBrandLockup(markSize: 38),
         actions: [
+          IconButton(
+            tooltip: 'حماية ملف الطالب برمز PIN',
+            onPressed: () => _openPinSettings(context),
+            icon: const Icon(Icons.lock_outline_rounded),
+          ),
           IconButton(
             tooltip: 'حول منصة التفوق',
             onPressed: () => Navigator.of(context).push(
