@@ -21,6 +21,19 @@ class _StudentPinPageState extends State<StudentPinPage> {
   final _pinService = StudentPinService();
   final _pinController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _currentPinController = TextEditingController();
+  bool _hasExistingPin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPinState();
+  }
+
+  Future<void> _loadPinState() async {
+    final enabled = await _pinService.isEnabled();
+    if (mounted) setState(() => _hasExistingPin = enabled);
+  }
   bool _busy = false;
   String? _error;
 
@@ -32,6 +45,12 @@ class _StudentPinPageState extends State<StudentPinPage> {
     });
     try {
       if (widget.settingsMode) {
+        if (_hasExistingPin) {
+          final currentValid = await _pinService.verify(_currentPinController.text);
+          if (!currentValid) {
+            throw const FormatException('رمز PIN الحالي غير صحيح.');
+          }
+        }
         if (pin.length != 4 || !RegExp(r'^\\d{4}$').hasMatch(pin)) {
           throw const FormatException('أدخل رمزاً مكوناً من أربعة أرقام.');
         }
@@ -65,6 +84,7 @@ class _StudentPinPageState extends State<StudentPinPage> {
   void dispose() {
     _pinController.dispose();
     _confirmController.dispose();
+    _currentPinController.dispose();
     super.dispose();
   }
 
@@ -104,6 +124,21 @@ class _StudentPinPageState extends State<StudentPinPage> {
                     style: const TextStyle(color: AppColors.muted, height: 1.5),
                   ),
                   const SizedBox(height: 24),
+                  if (settings && _hasExistingPin) ...[
+                    TextField(
+                      controller: _currentPinController,
+                      keyboardType: TextInputType.number,
+                      obscureText: true,
+                      maxLength: 4,
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(
+                        labelText: 'رمز PIN الحالي',
+                        counterText: '',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                   TextField(
                     controller: _pinController,
                     keyboardType: TextInputType.number,
