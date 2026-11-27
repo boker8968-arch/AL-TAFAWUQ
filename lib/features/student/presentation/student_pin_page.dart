@@ -52,12 +52,13 @@ class _StudentPinPageState extends State<StudentPinPage> {
     try {
       if (widget.settingsMode) {
         if (_hasExistingPin) {
-          final currentValid = await _pinService.verify(_currentPinController.text);
+          final currentValid =
+              await _pinService.verify(_currentPinController.text);
           if (!currentValid) {
             throw const FormatException('رمز PIN الحالي غير صحيح.');
           }
         }
-        if (pin.length != 4 || !RegExp(r'^\\d{4}$').hasMatch(pin)) {
+        if (!StudentPinService.isValidPinFormat(pin)) {
           throw const FormatException('أدخل رمزاً مكوناً من أربعة أرقام.');
         }
         if (pin != _confirmController.text) {
@@ -80,7 +81,54 @@ class _StudentPinPageState extends State<StudentPinPage> {
     } on FormatException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
-      if (mounted) setState(() => _error = 'تعذر إتمام العملية. حاول مرة أخرى.');
+      if (mounted) {
+        setState(() => _error = 'تعذر إتمام العملية. حاول مرة أخرى.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _disablePin() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إيقاف حماية PIN؟'),
+        content: const Text('سيصبح فتح ملف الطالب متاحاً دون إدخال الرمز.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final valid = await _pinService.verify(_currentPinController.text);
+      if (!valid) {
+        throw const FormatException('رمز PIN الحالي غير صحيح.');
+      }
+      await _pinService.disable();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إيقاف حماية PIN.')),
+      );
+      widget.onUnlocked();
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'تعذر إيقاف الحماية. حاول مرة أخرى.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -111,7 +159,8 @@ class _StudentPinPageState extends State<StudentPinPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.lock_rounded, size: 54, color: AppColors.emerald),
+                  const Icon(Icons.lock_rounded,
+                      size: 54, color: AppColors.emerald),
                   const SizedBox(height: 18),
                   Text(
                     settings ? 'فعّل رمز PIN اختياري' : 'ملفك الدراسي محمي',
@@ -127,7 +176,8 @@ class _StudentPinPageState extends State<StudentPinPage> {
                         ? 'أنشئ رمزاً من أربعة أرقام. سيُطلب عند فتح التطبيق على هذا الجهاز.'
                         : 'أدخل رمز PIN المكوّن من أربعة أرقام للمتابعة.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.muted, height: 1.5),
+                    style: const TextStyle(
+                        color: AppColors.muted, height: 1.5),
                   ),
                   const SizedBox(height: 24),
                   if (settings && _hasExistingPin) ...[
@@ -180,16 +230,33 @@ class _StudentPinPageState extends State<StudentPinPage> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: (_busy || (settings && !_pinStateLoaded)) ? null : _submit,
+                      onPressed:
+                          (_busy || (settings && !_pinStateLoaded))
+                              ? null
+                              : _submit,
                       child: _busy
                           ? const SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(settings ? (_hasExistingPin ? 'تغيير رمز PIN' : 'تفعيل الحماية') : 'متابعة'),
+                          : Text(settings
+                              ? (_hasExistingPin
+                                  ? 'تغيير رمز PIN'
+                                  : 'تفعيل الحماية')
+                              : 'متابعة'),
                     ),
                   ),
+                  if (settings && _hasExistingPin) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _busy ? null : _disablePin,
+                        child: const Text('إيقاف حماية PIN'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
