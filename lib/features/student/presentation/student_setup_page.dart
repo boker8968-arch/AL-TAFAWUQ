@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/branding/tafwauq_brand.dart';
 import '../data/student_models.dart';
 import '../data/student_repository.dart';
 
 class StudentSetupPage extends StatefulWidget {
-  const StudentSetupPage({super.key});
+  const StudentSetupPage({super.key, this.onSaved, this.isFirstRun = false});
+
+  final VoidCallback? onSaved;
+  final bool isFirstRun;
 
   @override
   State<StudentSetupPage> createState() => _StudentSetupPageState();
@@ -77,7 +81,11 @@ class _StudentSetupPageState extends State<StudentSetupPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم حفظ بيانات الطالب على الجهاز.')),
       );
-      Navigator.of(context).pop(true);
+      if (widget.onSaved != null) {
+        widget.onSaved!();
+      } else {
+        Navigator.of(context).pop(true);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -97,7 +105,7 @@ class _StudentSetupPageState extends State<StudentSetupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('إعداد الطالب')),
+      appBar: AppBar(title: Text(widget.isFirstRun ? 'مرحباً بك في التفوق' : 'إعداد الطالب'), automaticallyImplyLeading: !widget.isFirstRun),
       body: SafeArea(
         child: FutureBuilder<List<Grade>>(
           future: _gradesFuture,
@@ -129,6 +137,11 @@ class _StudentSetupPageState extends State<StudentSetupPage> {
             return ListView(
               padding: const EdgeInsets.all(20),
               children: [
+                if (widget.isFirstRun) ...[
+                  const SizedBox(height: 20),
+                  const Center(child: TafawuqBrandMark(size: 82)),
+                  const SizedBox(height: 18),
+                ],
                 const Text(
                   'لنجهّز تجربتك التعليمية',
                   style: TextStyle(

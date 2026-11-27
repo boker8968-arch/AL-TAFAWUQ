@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/branding/tafwauq_brand.dart';
+import '../../about/presentation/about_page.dart';
 import '../../student/presentation/student_setup_page.dart';
-import '../../content/presentation/content_management_page.dart';
+import '../../student/presentation/student_pin_page.dart';
 import '../../library/presentation/learning_library_page.dart';
 import '../../exams/presentation/exams_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
-
-  void _openContentManagement(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const ContentManagementPage()),
-    );
-  }
 
   void _openLibrary(BuildContext context) {
     Navigator.of(context).push(
@@ -24,6 +20,17 @@ class HomePage extends StatelessWidget {
   void _openExams(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const ExamsPage()),
+    );
+  }
+
+  Future<void> _openPinSettings(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => StudentPinPage(
+          settingsMode: true,
+          onUnlocked: () => Navigator.of(context).pop(),
+        ),
+      ),
     );
   }
 
@@ -39,29 +46,19 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'منصة التفوق',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
-            ),
-            Text(
-              'طريقك نحو التفوق الدراسي',
-              style: TextStyle(fontSize: 11, color: AppColors.muted),
-            ),
-          ],
-        ),
+        title: const TafawuqBrandLockup(markSize: 38),
         actions: [
           IconButton(
-            tooltip: 'إدارة المحتوى للمشرفين',
-            onPressed: () => _openContentManagement(context),
-            icon: const Icon(Icons.admin_panel_settings_outlined),
+            tooltip: 'حماية ملف الطالب برمز PIN',
+            onPressed: () => _openPinSettings(context),
+            icon: const Icon(Icons.lock_outline_rounded),
           ),
           IconButton(
-            tooltip: 'الإشعارات',
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_none_rounded),
+            tooltip: 'حول منصة التفوق',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const AboutPage()),
+            ),
+            icon: const Icon(Icons.info_outline_rounded),
           ),
           const SizedBox(width: 8),
         ],
@@ -94,6 +91,7 @@ class HomePage extends StatelessWidget {
         onDestinationSelected: (index) {
           if (index == 1) _openLibrary(context);
           if (index == 2) _openExams(context);
+          if (index == 3) _openStudentSetup(context);
         },
         destinations: const [
           NavigationDestination(
@@ -129,12 +127,13 @@ class _WelcomeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
-          colors: [AppColors.emerald, AppColors.deepEmerald],
+          colors: [AppColors.emerald, AppColors.deepEmerald, AppColors.dark],
         ),
+        boxShadow: [BoxShadow(color: AppColors.deepEmerald.withValues(alpha: .14), blurRadius: 22, offset: const Offset(0, 10))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

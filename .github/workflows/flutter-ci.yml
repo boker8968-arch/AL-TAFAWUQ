@@ -23,6 +23,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Cache Gradle dependencies
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Generate Android platform scaffold
         run: flutter create . --platforms=android
 
@@ -38,13 +41,24 @@ jobs:
       - name: Test
         run: flutter test
 
-      - name: Build Android ARM64 release APK
-        run: flutter build apk --release --target-platform android-arm64
+      - name: Build Android release APK (ARM, ARM64 and x86_64)
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if flutter build apk --release --target-platform android-arm,android-arm64,android-x64; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Gradle download/build failed; retrying in $((attempt * 20)) seconds..."
+              sleep $((attempt * 20))
+            fi
+          done
+          exit 1
 
-      - name: Upload Android ARM64 release APK
+      - name: Upload Android release APK
         uses: actions/upload-artifact@v4
         with:
-          name: al-tafawuq-android-arm64-release-apk
+          name: al-tafawuq-android-multi-abi-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 7
