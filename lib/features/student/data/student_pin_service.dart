@@ -14,6 +14,9 @@ class StudentPinService {
 
   final FlutterSecureStorage _storage;
 
+  static bool isValidPinFormat(String pin) =>
+      pin.length == 4 && pin.codeUnits.every((c) => c >= 48 && c <= 57);
+
   Future<bool> isEnabled() async {
     final hash = await _storage.read(key: _hashKey);
     final salt = await _storage.read(key: _saltKey);
@@ -31,7 +34,7 @@ class StudentPinService {
   }
 
   Future<bool> verify(String pin) async {
-    if (!_validFormat(pin)) return false;
+    if (!isValidPinFormat(pin)) return false;
     final salt = await _storage.read(key: _saltKey);
     final expected = await _storage.read(key: _hashKey);
     if (salt == null || expected == null) return false;
@@ -52,11 +55,8 @@ class StudentPinService {
   String _digest(String salt, String pin) =>
       sha256.convert(utf8.encode('$salt:$pin')).toString();
 
-  bool _validFormat(String pin) =>
-      pin.length == 4 && pin.codeUnits.every((c) => c >= 48 && c <= 57);
-
   void _validate(String pin) {
-    if (!_validFormat(pin)) {
+    if (!isValidPinFormat(pin)) {
       throw ArgumentError('PIN must contain exactly four digits.');
     }
   }
